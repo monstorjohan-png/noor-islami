@@ -31,8 +31,10 @@ getQuran(): Promise<QuranRow[]>                        // باق للبحث ال
 ## 2) التلاوة — `src/lib/audio.ts`
 
 ```ts
-RECITERS: 6 قرّاء
-surahAudioUrl(reciter, surah): string
+RECITERS: 10 قرّاء — لكل واحد ayahRate، وثلاثة منهم فقط surahRate
+SURAH_RECITERS: القرّاء الذين لهم ملف سورة كاملة
+hasSurahAudio(reciter): boolean
+surahAudioUrl(reciter, surah): string | null          // null = لا ملف سورة لهذا القارئ
 ayahAudioUrl(reciter, globalIndex): string            // مفهرس من +1
 isAudioCached(url): Promise<boolean>
 downloadSurahAudio(reciter, surah, onProgress?): Promise<'done' | 'error'>
@@ -40,6 +42,11 @@ clearAudioCache(): Promise<void>
 ```
 
 مفتاح اختيار القارئ: `reciter` في `SettingsState` من نوع `ReciterId`، افتراضيه `DEFAULT_RECITER_ID`.
+
+**قاعدة ملزمة:** لا تُضَف أي قراءة إلى `RECITERS` قبل أن يثبتها
+`npm run probe:reciters` بطلب حقيقي. خادم الملفات يردّ ٤٠٣ على المجلدات
+غير الموجودة، وقد كانت أربعة من ستة قرّاء روابط ميتة بسبب نسخ القائمة
+من غير فحص. انظر `SECURITY.md`.
 
 ## 3) بطاقة الآية — `src/lib/card.ts`
 
