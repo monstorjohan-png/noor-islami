@@ -3,15 +3,37 @@
  * تُشغَّل: npx vitest run
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
 const DATA = path.resolve(__dirname, '../public/data/quran');
-const uthmani = JSON.parse(readFileSync(path.join(DATA, 'uthmani.json'), 'utf8'));
-const positions = JSON.parse(readFileSync(path.join(DATA, 'positions.json'), 'utf8'));
-const surahs = JSON.parse(readFileSync(path.join(DATA, 'surahs.json'), 'utf8'));
-const shardIndex = JSON.parse(readFileSync(path.join(DATA, 'shard-index.json'), 'utf8'));
-const search = JSON.parse(readFileSync(path.join(DATA, 'search.json'), 'utf8'));
+
+/**
+ * قراءة ملف بيانات مع رسالة تُسمّي الحل.
+ * الملف `public/data/` خارج git، فإن غاب فالنظام لم يُشغّل `npm run data`.
+ * خطأ ENOENT الخام لا يقول ذلك، وقد يُنسب إلى عيب في الاختبار.
+ */
+function readData(...parts: string[]): unknown {
+  const file = path.join(DATA, ...parts);
+  if (!existsSync(file)) {
+    throw new Error(
+      `ملف البيانات مفقود: ${parts.join('/')} — شغّل \`npm run data\` (يجلب المحتوى ثم يشظّيه). ` +
+        'المحتوى الديني لا يُخزَّن في git عمداً.',
+    );
+  }
+  return JSON.parse(readFileSync(file, 'utf8'));
+}
+
+const uthmani = readData('uthmani.json') as unknown[][];
+const positions = readData('positions.json') as unknown[];
+const surahs = readData('surahs.json') as Array<{ n: number; verses: number }>;
+const shardIndex = readData('shard-index.json') as {
+  shardSize: number;
+  shards: number;
+  total: number;
+  offset: number[];
+};
+const search = readData('search.json') as unknown[];
 
 const offset: number[] = [];
 let acc = 0;
@@ -21,6 +43,24 @@ for (const s of surahs) {
 }
 
 describe('المصحف: نزاهة البيانات', () => {
+  it('التشريح مكتمل — التطبيق يقرأ الأجزاء لا الملف الواحد', () => {
+    // هذا الشرط منع بناءً مكسوراً على خادم النشر: جلب المحتوى كان يعمل،
+    // لكن خطوة التشريح لم تكن ضمنه، فيُنشر تطبيق بلا أجزاء ولا يفتح المصحف.
+    expect(existsSync(path.join(DATA, 'shard-index.json'))).toBe(true);
+    for (let n = 0; n < shardIndex.shards; n += 1) {
+      const name = `shards/${String(n).padStart(3, '0')}.json`;
+      expect(existsSync(path.join(DATA, name)), `الشريحة مفقودة: ${name}`).toBe(true);
+    }
+    expect(shardIndex.total).toBe(uthmani.length);
+    // فهرس الإزاحة: موضع أول آية في كل سورة، وآخر سورة تُغلق المجموع
+    expect(shardIndex.offset[1]).toBe(0);
+    for (let n = 1; n < surahs.length; n += 1) {
+      expect(shardIndex.offset[n + 1]).toBe(shardIndex.offset[n] + surahs[n - 1].verses);
+    }
+    const last = surahs[surahs.length - 1];
+    expect(shardIndex.offset[last.n] + last.verses).toBe(uthmani.length);
+  });
+
   it('مجموع آيات السور يساوي عدد الصفوف', () => {
     expect(acc).toBe(uthmani.length);
     expect(uthmani.length).toBe(6236);

@@ -5,7 +5,7 @@
   "type": "module",
   "description": "نور NOOR — تطبيق إسلامي شامل يعمل بدون إنترنت",
   "scripts": {
-    "data": "node scripts/fetch-content.mjs",
+    "data": "node scripts/fetch-content.mjs && node scripts/shard-quran.mjs",
     "data:verify": "node scripts/verify-content.mjs",
     "data:icons": "node scripts/make-icons.mjs",
     "check:text": "node scripts/check-encoding.mjs",
