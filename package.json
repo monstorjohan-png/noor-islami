@@ -13,6 +13,7 @@
     "check": "node scripts/verify-content.mjs && node scripts/check-encoding.mjs",
     "test": "vitest run",
     "probe:reciters": "node scripts/probe-reciters.mjs",
+    "deploy:manual": "npm run data && npm run build && npx wrangler pages deploy dist --project-name=noor-islami",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview --port 4173",

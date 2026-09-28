@@ -1,6 +1,38 @@
 # النشر — خطوة بخطوة
 > الاستضافة: **Cloudflare Pages** · النطاق: **`noor-islami.pages.dev`** مجاني ودائم.
 
+---
+
+## المسار السريع — رابط حيّ في دقائق
+
+أسرع طريق للحصول على رابط دائم، ويتخطّى النشر التلقائي إلى ما بعده. يمكن تفعيله لاحقاً في أي وقت.
+
+### أ. ارفع الكود إلى GitHub
+
+```powershell
+cd E:\NOOR
+gh auth login
+gh repo create noor-islami --public --source=. --remote=origin --push
+```
+
+> ‏`gh auth login` يطبع رمزاً في الطرفية ويفتح المتصفّح — أدخل الرمز هناك واسمح. هذا هو الجزء الوحيد الذي لا أستطيع فعله نيابة عنك.
+
+### ب. انشر من جهازك مباشرة (بلا أسرار)
+
+```powershell
+npx wrangler login                                   # يفتح المتصفّح — اسمح لـ Cloudflare
+npm run data                                         # بيانات المصحف خارج git
+npm run build
+npx wrangler pages project create noor-islami
+npx wrangler pages deploy dist --project-name=noor-islami
+```
+
+الرابط الدائم: `https://noor-islami.pages.dev`
+
+### ج. فعّل النشر التلقائي (لاحقاً)
+
+اتبع المرحلتين ١ و ٢ أدناه. بعدها كل `git push` ينشر تلقائياً إلى نفس الرابط نفسه.
+
 لماذا هذا الاختيار: مجاني بلا حدّ زمني، نطاق فرعي دائم يعطيك إياه Cloudflare تلقائياً، شبكة CDN عالمية بلا حدّ زيارات، ودعم لأسرار النشر من GitHub Actions.
 
 ---
@@ -76,8 +108,8 @@ git push
 `pages.dev` دائم ولا يحتاج شيئاً. إن أردت نطاقاً خاصاً بك:
 
 ```powershell
-npx wrangler pages project noor-islami
-# من dash.cloudflare.com → Custom domains → نطمك
+npx wrangler pages project list
+# من dash.cloudflare.com → Custom domains → أضف نطاقك
 ```
 
 النطاق المدفوع ليس جزءاً من الخطة المجانية — `pages.dev` مجاني بالكامل ودائم.
