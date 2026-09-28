@@ -24,6 +24,7 @@ import {
 import type { ReciterId } from '../lib/audio';
 import { cardFileName, renderAyahCard, shareAyahImage } from '../lib/card';
 import { shareAyah, shareSurah } from '../lib/share';
+import { getBtnLabel } from '../lib/ui-labels';
 import { useAsync, useL, useT } from '../lib/hooks';
 import { useSettings } from '../lib/store';
 import type { ReadingState } from '../lib/store';
@@ -177,6 +178,8 @@ export default function SurahReader() {
     const r = RECITERS.find((x) => x.id === reciter);
     return { ar: r?.ar ?? '', en: r?.en ?? '' };
   }, [reciter]);
+
+  
 
   /**
    * رابط ملف السورة كاملة، أو `null` إن لم يكن لهذا القارئ ملف سورة على الشبكة.
@@ -624,7 +627,7 @@ export default function SurahReader() {
               onClick={() => void shareSurah(surah.n, ayahs, (lang === 'en' ? 'en' : 'ar'))}
             >
               <ShareIcon className="h-3.5 w-3.5" />
-              <span>{t('share')}</span>
+              <span>{getBtnLabel('shareImage', lang)}</span>
             </button>
           ) : null}
 
@@ -766,15 +769,16 @@ export default function SurahReader() {
                         onClick={() => void shareImage(ay)}
                       >
                         <ShareIcon className="h-3.5 w-3.5" />
-                        <span>{t('share')}</span>
+                        <span>{getBtnLabel('shareImage', lang)}</span>
                       </button>
+                      {/* نص المشاركة — ثابت لتجنب تلف التصغير */}
                       <button
                         type="button"
                         className="btn-subtle !px-2 !py-1 text-[11px]"
                         onClick={() => void shareAyah(ay, surah!.n, (lang === 'en' ? 'en' : 'ar'))}
                       >
                         <ShareIcon className="h-3.5 w-3.5" />
-                        <span>{L({ ar: 'نص', en: 'Text' })}</span>
+                        <span>{getBtnLabel('shareText', lang)}</span>
                       </button>
                       <span className="num ms-auto text-[11px] text-slate-600">
                         {t('juz')} {ay.juz} · {t('page')} {ay.page}
