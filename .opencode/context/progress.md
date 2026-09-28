@@ -113,3 +113,51 @@
 - حُذفت السكربتات المؤقتة (`batch-find` `quran-lookup` `fix-*` `apply-ref-fixes`)؛
   بقيت الأدوات الدائمة السبع.
 - الباقي المؤجّل: تغليف APK/AAB عبر Capacitor/TWA عند الطلب.
+
+---
+
+## frontend-dev — طبقة المصادقة (2026-09-28)
+
+### الملفات المنشأة
+
+| الملف | الوصف |
+|---|---|
+| `src/lib/auth/types.ts` | عقد المزوّدين، كائن الخطأ، تحويل الأخطاء إلى نص عربي، مدقّقات نقية (بريد/كلمة مرور)، وقراءة المتغيّرات |
+| `src/lib/auth/null.ts` | مزوّد الضيف: قيم صالحة دائماً، بلا شبكة، بلا رمي |
+| `src/lib/auth/supabase.ts` | مزوّد Supabase باستيراد ديناميكي: دخول/تسجيل/جوجل/خروج/حذف |
+| `src/lib/auth/index.ts` | اختيار المزوّد حسب وجود المفاتيح، وصندوق إعادة التصدير |
+| `src/lib/auth/context.tsx` | متجر الحالة الخارجي، `useAuth`، `initAuth`، `AuthProvider`، `useRequireAuth`، وربط المزامنة |
+| `src/lib/sync.ts` | المزامنة الاختيارية: دمج حسب الأحدث، شواهد المحذوفات، `runSync`/`startSync` |
+| `src/pages/Account.tsx` | صفحة الحساب: ضيف، دخول، تسجيل، جوجل، خروج، حذف |
+| `tests/auth.test.ts` | 28 اختباراً: المزوّد الفارغ والدوال النقية وتسوية تعارضات المزامنة |
+
+### الملفات المعدّلة
+
+- `src/App.tsx` — مسار `/account` فقط.
+- `src/components/Layout.tsx` — رابط الحساب فقط.
+- `src/i18n/index.ts` — `MsgKey` و`as const` بلا تغيير توقيع `t()`.
+- `src/lib/types.ts` — حقول المزامنة في سجلّ العلامات.
+- `package.json` — `@supabase/supabase-js@^2.109.0`.
+
+### قرارات مهمة
+
+- **قراءة المتغيّرات سطرياً**: `import.meta.env.VITE_SUPABASE_URL ?? ''` داخل الدالة نفسها. القراءة عبر دالة مساعدة أو `env[name]` لا تُطوى من Roli/Rollup، فتبقى حزمة supabase. مقياس: `precache` من 46 مدخلاً (1352 كيلوبايت) إلى 44 مدخلاً (1132 كيلوبايت)، و`dist/` خالٍ تماماً من كلمة supabase.
+- **`AuthProvider` اختياري**: `main.tsx` خارج الملفات المسموح تعديلها، فالحالة في متجر على مستوى الوحدة يُقرأ بـ `useSyncExternalStore` والتركيب منعزل.
+- **حذف الحساب بدالة SQL على الخادم**: مفتاح `anon` في المتصفح لا يملك صلاحيات إدارية، فـ`rpc('delete_account')`. نصّ الدالة موثّق في تعليق أعلى `supabase.ts`.
+- **تعارض المزامنة**: الأحدث يفوز على `stampOf = deletedAt ?? at`، والتساوي يُرجّح البعيد، وشواهد المحذوفات 30 يوماً، وحارس `sameBookmarks` يمنع حلقة `setLocal` ← `subscribe` ← `runSync`.
+- **المزامنة مغلقة افتراضياً**: تشتغل فقط عند `VITE_SYNC === '1'`.
+
+### ما طلبته من غيري
+
+- `src/vite-env.d.ts` ممنوع التعديل — يلزم التصريح بمفاتيحه:
+  `VITE_SUPABASE_URL?: string` و`VITE_SUPABASE_ANON_KEY?: string` و`VITE_SYNC?: string`.
+- جدول `noor_bookmarks` ودالة `delete_account` تُنفَّذان في Supabase من لوحة التحكم، ونصاهما في تعليقَي `sync.ts` و`supabase.ts`.
+
+### البوابات
+
+| البوابة | النتيجة |
+|---|---|
+| `npx tsc -p tsconfig.json --noEmit` | بلا مخرجات، رمز الخروج 0 |
+| `npx vitest run` | 4 ملفات، 73 اختباراً ناجحاً |
+| `node scripts/check-encoding.mjs` | لا تلف نصي في 50 ملفاً |
+| `npm run build` | نجح، precache بحدود 1132 كيلوبايت |

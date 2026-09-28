@@ -5,7 +5,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   RECITERS,
+  SURAH_RECITERS,
   ayahAudioUrl,
+  hasSurahAudio,
   surahAudioUrl,
   DEFAULT_RECITER_ID,
 } from '../src/lib/audio';
@@ -37,9 +39,35 @@ describe('روابط التلاوة', () => {
     expect(ayahAudioUrl('ar.alafasy', 6235)).toMatch(/\/6236\.mp3$/);
   });
 
-  it('كل القرّاء يعطون رابطاً مختلفاً لنفس السورة', () => {
-    const urls = RECITERS.map((r) => surahAudioUrl(r.id, 1));
+  it('كل قارئ له ملف سورة أو لا شيء — لا رابط ميت', () => {
+    // ملف السورة موجود لثلاثة قرّاء فقط. من لا ملف له يعيد `null`،
+    // لأن بناء رابط لملف غير موجود يعني رابطاً ميتاً يُعرض للمستخدم.
+    for (const r of RECITERS) {
+      const u = surahAudioUrl(r.id, 1);
+      if (hasSurahAudio(r.id)) {
+        expect(u).toBeTruthy();
+        expect(u).toContain(`/${r.id}/`);
+      } else {
+        expect(u).toBeNull();
+      }
+    }
+  });
+
+  it('كل القرّاء لهم ملف آية برابط مختلف', () => {
+    const urls = RECITERS.map((r) => ayahAudioUrl(r.id, 1));
     expect(new Set(urls).size).toBe(RECITERS.length);
+  });
+
+  it('لكل قارئ معدل آية معرّف', () => {
+    for (const r of RECITERS) {
+      expect([64, 128]).toContain(r.ayahRate);
+    }
+  });
+
+  it('معدّل السورة يُذكر صراحة للقرّاء الذين لهم ملف', () => {
+    for (const r of SURAH_RECITERS) {
+      expect([64, 128]).toContain((r as { surahRate: number }).surahRate);
+    }
   });
 
   it('معرّف قارئ غير معروف لا يصل إلى الرابط', () => {
@@ -48,6 +76,7 @@ describe('روابط التلاوة', () => {
     const u = surahAudioUrl('ar.unknown' as never, 1);
     expect(u).not.toContain('ar.unknown');
     expect(u).toBe(surahAudioUrl(DEFAULT_RECITER_ID, 1));
+    expect(ayahAudioUrl('ar.unknown' as never, 1)).toBe(ayahAudioUrl(DEFAULT_RECITER_ID, 1));
   });
 
   it('رقم سورة أو آية شاذّ لا يصل إلى الرابط', () => {
@@ -61,9 +90,12 @@ describe('روابط التلاوة', () => {
 
   it('كل روابط القرّاء على مضيف التلاوة وحده', () => {
     for (const r of RECITERS) {
-      for (const u of [surahAudioUrl(r.id, 1), ayahAudioUrl(r.id, 1)]) {
-        expect(new URL(u).host).toBe('cdn.islamic.network');
-        expect(new URL(u).protocol).toBe('https:');
+      const u = surahAudioUrl(r.id, 1);
+      const list: string[] = [ayahAudioUrl(r.id, 1)];
+      if (u) list.push(u);
+      for (const link of list) {
+        expect(new URL(link).host).toBe('cdn.islamic.network');
+        expect(new URL(link).protocol).toBe('https:');
       }
     }
   });

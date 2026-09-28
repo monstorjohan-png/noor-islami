@@ -12,18 +12,54 @@
  */
 
 const CACHE = 'noor-audio';
+const HOST = 'https://cdn.islamic.network';
 
-/** قرّاء متاحون على نفس الـ CDN — الترقيم مطابق لمجلد كل قارئ */
+/**
+ * القرّاء المتاحون فعلياً.
+ * ------------------------------------------------------------------
+ * كل سطر هنا مُختبَر بطلب حقيقي إلى الشبكة، لا منسوخ من قائمة عامة.
+ * الفرق الجوهري: **لكل قارئ معدل خاص لملفات الآيات، وثلاثة فقط لهم
+ * ملف سورة كاملة**. افتراض معدل واحد للجميع كان يجعل روابط أربعة
+ * قرّاء روابط ميتة على خادم الملفات.
+ *
+ * - `ayahRate`  معدل ملفات الآيات، وهو الموجود لكل قارئ في هذه القائمة
+ * - `surahRate` معدل ملف السورة الكاملة، وهو موجود لثلاثة فقط
+ *
+ * إعادة الفحص عند تغيّر القائمة: `node scripts/probe-reciters.mjs`
+ */
 export const RECITERS = [
-  { id: 'ar.alafasy', bitrate: 128, ar: 'مشاري راشد العفاسي', en: 'Mishary Rashid Alafasy' },
-  { id: 'ar.abdulbasitmurattal', bitrate: 128, ar: 'عبد الباسط عبد الصمد (مرتل)', en: 'Abdul Basit Abdul Samad' },
-  { id: 'ar.mahermuaiqly', bitrate: 128, ar: 'ماهر المعيقلي', en: 'Maher Al Muaiqly' },
-  { id: 'ar.minshawi', bitrate: 128, ar: 'محمد صديق المنشاوي', en: 'Al-Minshawi' },
-  { id: 'ar.saoodshuraym', bitrate: 128, ar: 'سعود الشريم', en: 'Saood Ash-Shuraym' },
-  { id: 'ar.husary', bitrate: 128, ar: 'محمود خليل الحصري', en: 'Mahmoud Khalil Al-Husary' },
+  {
+    id: 'ar.alafasy',
+    ayahRate: 128,
+    surahRate: 128,
+    ar: 'مشاري راشد العفاسي',
+    en: 'Mishary Rashid Alafasy',
+  },
+  {
+    id: 'ar.abdulbasitmurattal',
+    ayahRate: 64,
+    surahRate: 128,
+    ar: 'عبد الباسط عبد الصمد — مرتل',
+    en: 'Abdul Basit Abdul Samad (Murattal)',
+  },
+  {
+    id: 'ar.abdulbasitmujawwad',
+    ayahRate: 64,
+    surahRate: 128,
+    ar: 'عبد الباسط عبد الصمد — مجوّد',
+    en: 'Abdul Basit Abdul Samad (Mujawwad)',
+  },
+  { id: 'ar.husary', ayahRate: 128, ar: 'محمود خليل الحصري', en: 'Mahmoud Khalil Al-Husary' },
+  { id: 'ar.minshawi', ayahRate: 128, ar: 'محمد صديق المنشاوي', en: 'Al-Minshawi (Murattal)' },
+  { id: 'ar.saoodshuraym', ayahRate: 64, ar: 'سعود الشريم', en: 'Saood Ash-Shuraym' },
+  { id: 'ar.hudhaify', ayahRate: 128, ar: 'علي الحذيفي', en: 'Ali Al-Hudhaify' },
+  { id: 'ar.mahermuaiqly', ayahRate: 128, ar: 'ماهر المعيقلي', en: 'Maher Al-Muaiqly' },
+  { id: 'ar.shaatree', ayahRate: 128, ar: 'أبو بكر الشاطري', en: 'Abu Bakr Al-Shatri' },
+  { id: 'ar.muhammadayyoub', ayahRate: 128, ar: 'محمد أيوب', en: 'Muhammad Ayyoub' },
 ] as const;
 
-export type ReciterId = (typeof RECITERS)[number]['id'];
+export type Reciter = (typeof RECITERS)[number];
+export type ReciterId = Reciter['id'];
 
 const DEFAULT_RECITER: ReciterId = 'ar.alafasy';
 
@@ -31,22 +67,35 @@ const DEFAULT_RECITER: ReciterId = 'ar.alafasy';
  * القارئ يأتي من التخزين المحلي بعد إعادة الترطيب.
  * لا يُبنى الرابط أبداً بمعرّف غير معروف — نرجع للقارئ الافتراضي.
  */
-function resolveReciter(reciter: ReciterId): (typeof RECITERS)[number] {
+function resolveReciter(reciter: ReciterId): Reciter {
   return RECITERS.find((r) => r.id === reciter) ?? RECITERS[0];
 }
 
-/** رابط السورة كاملة — ملف واحد لكل سورة */
-export function surahAudioUrl(reciter: ReciterId, surah: number): string {
+/** القرّاء الذين لهم ملف سورة كاملة — عليهم وحدهم يظهر زرّ الحفظ دون إنترنت */
+export const SURAH_RECITERS = RECITERS.filter((r) => 'surahRate' in r);
+
+/** هل لهذا القارئ ملف سورة كاملة على الشبكة؟ */
+export function hasSurahAudio(reciter: ReciterId): boolean {
+  return 'surahRate' in resolveReciter(reciter);
+}
+
+/**
+ * رابط السورة كاملة، أو `null` إن لم يكن لهذا القارئ ملف سورة على الشبكة.
+ * `null` ليس خطأً عابراً: القرّاء العشرة مدعومون لتلاوة الآية، وثلاثة منهم
+ * فقط لهم ملف السورة، وإعلان غير ذلك للمستخدم تضليل.
+ */
+export function surahAudioUrl(reciter: ReciterId, surah: number): string | null {
   const r = resolveReciter(reciter);
+  if (!('surahRate' in r)) return null;
   const n = Number.isSafeInteger(surah) && surah >= 1 && surah <= 114 ? surah : 1;
-  return `https://cdn.islamic.network/quran/audio-surah/${r.bitrate}/${r.id}/${n}.mp3`;
+  return `${HOST}/quran/audio-surah/${r.surahRate}/${r.id}/${n}.mp3`;
 }
 
 /** رابط آية واحدة — الملفات مفهرسة من واحد */
 export function ayahAudioUrl(reciter: ReciterId, globalIndex: number): string {
   const r = resolveReciter(reciter);
   const n = Number.isSafeInteger(globalIndex) && globalIndex >= 0 ? globalIndex + 1 : 1;
-  return `https://cdn.islamic.network/quran/audio/${r.bitrate}/${r.id}/${n}.mp3`;
+  return `${HOST}/quran/audio/${r.ayahRate}/${r.id}/${n}.mp3`;
 }
 
 export const DEFAULT_RECITER_ID = DEFAULT_RECITER;
@@ -83,9 +132,11 @@ export async function downloadSurahAudio(
   surah: number,
   onProgress?: (loaded: number, total: number) => void,
 ): Promise<DownloadState> {
+  const url = surahAudioUrl(reciter, surah);
+  // لا ملف سورة لهذا القارئ على الشبكة — لا ادّعاء بتنزيل تمّ
+  if (!url) return 'error';
   const cache = await openCache();
   if (!cache) return 'error';
-  const url = surahAudioUrl(reciter, surah);
 
   if (await cache.match(url)) {
     onProgress?.(1, 1);

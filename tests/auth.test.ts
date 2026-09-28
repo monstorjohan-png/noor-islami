@@ -160,6 +160,22 @@ describe('أدوات التحقق الخالصة', () => {
   });
 });
 
+/* ---------- التطبيق كاملاً بلا مفاتيح ---------- */
+
+describe('تهيئة التطبيق في وضع الضيف', () => {
+  it('التهيئة تنتهي بمزوّد فارغ، مرّة واحدة، بلا رمي', async () => {
+    const mod = await import('../src/lib/auth/context');
+    const first = await mod.initAuth();
+    const second = await mod.initAuth();
+    expect(first.kind).toBe('null');
+    expect(first.available).toBe(false);
+    expect(second).toBe(first);
+    await expect(first.getSession()).resolves.toBeNull();
+    expect(mod.stopUserSync).toBeTypeOf('function');
+    expect(() => mod.stopUserSync()).not.toThrow();
+  });
+});
+
 /* ---------- المزامنة: معطّلة افتراضياً ---------- */
 
 describe('المزامنة: البوابة', () => {

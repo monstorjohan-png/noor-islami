@@ -17,6 +17,7 @@ import {
   RECITERS,
   ayahAudioUrl,
   downloadSurahAudio,
+  hasSurahAudio,
   isAudioCached,
   surahAudioUrl,
 } from '../lib/audio';
@@ -176,15 +177,24 @@ export default function SurahReader() {
     return { ar: r?.ar ?? '', en: r?.en ?? '' };
   }, [reciter]);
 
+  /**
+   * رابط ملف السورة كاملة، أو `null` إن لم يكن لهذا القارئ ملف سورة على الشبكة.
+   * ثلاثة قرّاء فقط لهم هذا الملف، فالباقي يتلو آية آية.
+   */
+  const surahUrl = useMemo(
+    () => (range === 'surah' && surah ? surahAudioUrl(reciter, surah.n) : null),
+    [range, surah, reciter],
+  );
+
   /** هل تلاوة هذه السورة مخزَّنة محلياً؟ */
   useEffect(() => {
-    if (range !== 'surah' || !surah) { setAudioSaved(false); return; }
+    if (!surahUrl) { setAudioSaved(false); return; }
     let alive = true;
-    void isAudioCached(surahAudioUrl(reciter, surah.n)).then((hit) => {
+    void isAudioCached(surahUrl).then((hit) => {
       if (alive) setAudioSaved(hit);
     });
     return () => { alive = false; };
-  }, [range, surah, reciter]);
+  }, [surahUrl]);
 
   const markedKeys = useMemo(
     () =>
@@ -344,7 +354,8 @@ export default function SurahReader() {
       return;
     }
     if (!ayahs.length) return;
-    if (range === 'surah' && surah) start(surahAudioUrl(reciter, surah.n), ayahs, 'all');
+    // ملف السورة متاح لثلاثة قرّاء؛ لغيرهم نبدأ من أول آية
+    if (surahUrl) start(surahUrl, ayahs, 'all');
     else start(ayahAudioUrl(reciter, ayahs[0].globalIndex), [ayahs[0]], keyOf(ayahs[0]));
   };
 
@@ -586,7 +597,7 @@ export default function SurahReader() {
             </select>
           </label>
 
-          {range === 'surah' ? (
+          {range === 'surah' && surahUrl ? (
             audioSaved ? (
               <span className="text-[11px] text-emerald-400">
                 {L({ ar: 'محفوظة للعمل دون إنترنت', en: 'Saved for offline use' })}
@@ -603,6 +614,15 @@ export default function SurahReader() {
                   : L({ ar: 'حفظ التلاوة', en: 'Save recitation' })}
               </button>
             )
+          ) : null}
+
+          {range === 'surah' && surah && !hasSurahAudio(reciter) ? (
+            <span className="text-[11px] text-slate-500">
+              {L({
+                ar: 'لا يتوفّر لهذا القارئ ملف سورة كاملة — التلاوة آية آية',
+                en: 'No full-surah file for this reciter — plays ayah by ayah',
+              })}
+            </span>
           ) : null}
         </div>
       </div>
