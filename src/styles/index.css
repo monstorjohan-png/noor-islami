@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------- الخطوط المضمّنة (تعمل بلا إنترنت) ---------- */
+/* Amiri + Amiri Quran — SIL Open Font License 1.1، نسخة في public/fonts/ */
+@font-face {
+  font-family: 'Amiri Quran';
+  src: url('/fonts/AmiriQuran-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Amiri';
+  src: url('/fonts/Amiri-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-t: env(safe-area-inset-top, 0px);
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-ink-900 text-slate-100 font-arabic antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  /* أرقام لاتينية بمحاذاة صحيحة داخل نص عربي */
+  .num {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+    direction: ltr;
+    unicode-bidi: embed;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-ink-600 rounded-full; }
+}
+
+@layer components {
+  .card {
+    @apply bg-ink-800/70 border border-white/5 rounded-2xl backdrop-blur-sm;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5
+           text-sm font-medium transition-all active:scale-[.97]
+           disabled:opacity-40 disabled:active:scale-100 select-none;
+  }
+  .btn-primary { @apply btn bg-gold-400 text-ink-900 hover:bg-gold-300 shadow-lg shadow-gold-500/20; }
+  .btn-ghost   { @apply btn bg-white/5 text-slate-200 hover:bg-white/10 border border-white/5; }
+  .btn-subtle  { @apply btn text-slate-400 hover:text-slate-100 hover:bg-white/5; }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs
+           bg-white/5 border border-white/10 text-slate-300;
+  }
+  .chip-active { @apply bg-gold-400/15 border-gold-400/40 text-gold-200; }
+
+  .label-ar { @apply text-[11px] font-medium text-slate-500; }
+}
+
+/* نص المصحف — تشكيل كامل */
+.quran-text {
+  /* الخط المضمَّن أولاً — لا اعتماد على خط الجهاز ولا على CDN */
+  font-family: 'Amiri Quran', 'Quran Web', 'KFGQPC Uthman Taha Naskh', 'Traditional Arabic', serif;
+  line-height: 2.35;
+  word-spacing: 0.06em;
+  font-feature-settings: 'kern' 1;
+}
+
+/* الآية داخل تلاوة */
+.ayah-active {
+  @apply bg-gold-400/15 rounded-lg transition-colors duration-500;
+  box-shadow: 0 0 0 1px rgba(221, 176, 75, 0.25);
+}
+
+.pattern-bg {
+  background-image:
+    radial-gradient(circle at 20% 15%, rgba(221, 176, 75, 0.07), transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(23, 163, 127, 0.06), transparent 45%);
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; color: black; }
+}

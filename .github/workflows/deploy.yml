@@ -1,0 +1,72 @@
+# النشر — بناء ثم نشر على Cloudflare Pages عند كل دفعة إلى main
+# ------------------------------------------------------------------
+# النطاق الناتج ‎*.pages.dev‎ مجاني ودائم، والتوزيع على شبكة Cloudflare
+# العالمية بلا حدّ للزيارات. لا خطوة يدوية بعد أول إعداد.
+#
+# بوابة الجودة تعمل بالتوازي مع هذا الملف. النشر لا ينجح إلا إن نجحت
+# البوابة أيضاً — كل الوظائف تعتمد على `quality`، فأي فشل يوقف النشر.
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    uses: ./.github/workflows/quality.yml
+    secrets: inherit
+
+  deploy:
+    needs: quality
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.deployment_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # المحتوى الديني من مصادره المرخّصة، لا من تاريخ git
+      - name: جلب المحتوى من المصادر المرخّصة
+        run: npm run data
+
+      - name: البناء
+        run: npm run build
+
+      # رؤوس الأمان والتوجيهات في `public/` تُنسخ مع البناء تلقائياً.
+      # نتحقق من وجودها حتى لا يُنشر بناء بلا حماية بصمت.
+      - name: التأكد من وجود رؤوس الأمان
+        run: |
+          test -f dist/_headers || { echo "::error::dist/_headers مفقود — سيُنشر بلا رؤوس أمان"; exit 1; }
+          test -f dist/_redirects || { echo "::error::dist/_redirects مفقود"; exit 1; }
+          grep -q "Content-Security-Policy" dist/_headers || { echo "::error::سياسة الأمان غير موجودة"; exit 1; }
+          echo "رؤوس الأمان موجودة"
+
+      - name: النشر على Cloudflare Pages
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=noor-islami --branch=main
+
+      - name: تلخيص النشر
+        run: |
+          echo "::notice::نُشر بنجاح على ${{ steps.deploy.outputs.deployment_url }}"
+          echo "الرابط الدائم: https://noor-islami.pages.dev"

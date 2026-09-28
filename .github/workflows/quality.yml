@@ -1,0 +1,62 @@
+# بوابة الجودة — لا يُدمج شيء قبل مرورها
+#
+# الترتيب مقصود: الأسرع أولاً. فحص النص قبل البناء، والبناء قبل الاختبارات
+# التي تقرأ الملفات الناتجة.
+
+name: Quality Gate
+
+on:
+  # على طلبات الدمج تعمل البوابة مستقلة.
+  # أما الدفع إلى main فيستدعيها `deploy.yml` ليُبنى مرة واحدة فقط لا مرتين.
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # 0) المحتوى الديني ليس في git — سبعون ميغابايت تُجلب من مصادرها
+      #    المرخّصة في كل تشغيل. لا يُكتب نصّ ديني في هذا المستودع إطلاقاً.
+      - name: جلب المحتوى من المصادر المرخّصة
+        run: npm run data
+
+      # 1) تلف النص العربي — أسرع فحص فيفشل
+      - name: فحص ترميز النص العربي
+        run: node scripts/check-encoding.mjs
+
+      # 2) نزاهة المحتوى الديني
+      - name: التحقق من الأذكار وأسماء الله
+        run: node scripts/verify-content.mjs
+
+      # 3) أنواع
+      - name: فحص الأنواع
+        run: npx tsc -p tsconfig.json --noEmit
+
+      # 4) اختبارات
+      - name: الاختبارات
+        run: npx vitest run
+
+      # 5) البناء
+      - name: البناء
+        run: npm run build
+
+      # 6) الأيقونات مكتملة
+      - name: فحص الأيقونات
+        run: node scripts/check-icons.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
