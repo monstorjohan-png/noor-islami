@@ -1,0 +1,84 @@
+# النشر على GitHub Pages — رابط دائم مجاني بلا أي خادم خاص
+#
+# يُستخدم حين لا يتوفّر حساب Cloudflare. البوابة نفسها تعمل أولاً كما في
+# `deploy.yml`، فلا يُنشر بناء مكسور.
+#
+# الرابط: https://<صاحب-المستودع>.github.io/<اسم-المستودع>/
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# صلاحية الكتابة علىPages تحتاجها خطوة النشر وحدها
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# لا يعمل أكثر من نشر واحد في وقت واحد، ويلغي القديم المعلّق
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # المحتوى الديني خارج git — يُجلب ويُشظّى في كل تشغيل
+      - name: جلب المحتوى وتشظيئه
+        run: npm run data
+
+      - name: فحص ترميز النص العربي
+        run: node scripts/check-encoding.mjs
+
+      - name: التحقق من الأذكار وأسماء الله
+        run: node scripts/verify-content.mjs
+
+      - name: فحص الأنواع
+        run: npx tsc -p tsconfig.json --noEmit
+
+      - name: الاختبارات
+        run: npx vitest run
+
+      # المسار الفرعي: Pages يقدّم المشروع تحت /<repo>/
+      - name: البناء على مسار المستودع
+        run: npm run build
+        env:
+          PAGES_BASE: /${{ github.event.repository.name }}/
+
+      - name: التأكد من وجود رؤوس الأمان
+        run: test -f dist/_headers || (echo "::error::dist/_headers مفقود — لن يُنشر بناء بلا حماية" && exit 1)
+
+      # Pages لا يقرأ `_redirects`، فتُرجع كل صفحة داخلية خطأ ٤٠٤.
+      # نسخ `index.html` باسم `404.html` يجعل Pages يخدم التطبيق كما يخدمه
+      # Cloudflare عبر `_redirects`. نسخة واحدة من truth، مصدران للتوجيه.
+      - name: Fallback للمسارات الداخلية
+        run: cp dist/index.html dist/404.html
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

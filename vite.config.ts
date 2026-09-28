@@ -4,6 +4,12 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
+  /**
+   * GitHub Pages يقدّم المشروع تحت مسار فرعي، وCloudflare Pages عند الجذر.
+   * البناء الواحد يخدم الاثنين: الجذر افتراضاً، والمسار الفرعي عند الطلب.
+   * قيمة خاطئة هنا تعني روابط أصول مكسورة، فالمصدر واحد والمُخرَج واحد.
+   */
+  base: process.env.PAGES_BASE || '/',
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
