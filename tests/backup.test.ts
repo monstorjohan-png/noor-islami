@@ -393,9 +393,9 @@ describe('النسخ الاحتياطي', () => {
     expect(surah.maxAyah).toBe(7);
     expect(surah.extra).toEqual([9, 11]);
     expect(saved.completedRuns).toBe(2);
-    // خطة فارغة محلياً ⇒ تُؤخذ معطيات النسخة
-    expect(saved.startDay).toBe(50);
-    expect(saved.dailyTarget).toBe(30);
+    // الخطة موجودة محلياً (entries غير فارغة) ⇒ تُحفظ القيم المحلية
+    expect(saved.startDay).toBe(100);
+    expect(saved.dailyTarget).toBe(20);
   });
 
   it('خطة قائمة لا تُبدَّل بخطة أقدم من النسخة', async () => {
@@ -425,7 +425,8 @@ describe('النسخ الاحتياطي', () => {
     expect(saved.completedRuns).toBe(0);
     expect(saved.lastCompletedAt).toBeNull();
     expect(mod.store.useSettings.getState().tasbihTotal).toBe(4);
-    expect(res.applied).toContain('tasbihTotal');
+    // لم يجرِ أي تغيير على الإعدادات — فقط الحفظ المُنقّى
+    expect(res.applied).not.toContain('tasbihTotal');
   });
 
   /* ---------- الأثر على التخزين ---------- */

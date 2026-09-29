@@ -16,6 +16,7 @@ import {
 const REMINDER_HOUR = 5;
 const REMINDER_MINUTE = 30;
 import { Card, Row, Section, Toggle } from '../components/ui';
+import BackupPanel from '../components/BackupPanel';
 import { PALETTES } from '../lib/theme';
 import type { Madhab } from '../lib/store';
 
@@ -253,6 +254,9 @@ export default function Settings() {
           />
         </div>
       </Card>
+
+      {/* نسخة احتياطية — الحماية الوحيدة بعد مسح الذاكرة */}
+      <BackupPanel />
 
       {/* البيانات */}
       <Section title={t('dataAndPrivacy')} />
