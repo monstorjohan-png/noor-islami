@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useL, useT } from '../lib/hooks';
 import { useSettings } from '../lib/store';
 import { Section } from '../components/ui';
+import InstallPanel from '../components/InstallPanel';
 import {
   AdhkarIcon, BookmarkIcon, CalendarIcon, DownloadIcon, HadithIcon,
   NamesIcon, PrayerIcon, QiblaIcon, QuranIcon, SettingsIcon, TasbihIcon,
@@ -29,6 +30,12 @@ export default function More() {
   return (
     <div className="animate-fade-in">
       <Section title={t('more')} />
+
+      {/* التثبيت أوّلاً: هو ما يجعل التطبيق على الهاتف بلا متصفّح */}
+      <div className="mb-4">
+        <InstallPanel />
+      </div>
+
       <ul className="space-y-2">
         {links.map(({ to, label, Icon, desc, badge }) => (
           <li key={to}>

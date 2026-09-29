@@ -19,8 +19,13 @@ const HOST = 'https://cdn.islamic.network';
 const TIMEOUT = 12_000;
 const WRITE = process.argv.includes('--write');
 
-/** القوائم المُرشَّحة للاختيار بين `ayahRate` و `surahRate` */
-const RATES = [64, 128];
+/**
+ * القوائم المُرشَّحة للاختيار بين `ayahRate` و `surahRate`.
+ * الترتيب **تنازلي عمداً**: نختبر ١٢٨ قبل ٦٤ فنلتقط أعلى جودة.
+ * لو كان تصاعدياً لأخذ ٦٤ دائماً — لأن ٦٤ يعمل إن وُجد ١٢٨ —
+ * فالاختيار الأول لا يدل على الأفضل أبداً.
+ */
+const RATES = [128, 64];
 
 /** المعرّفات المرشَّحة للقرّاء الجدد — تُختبر كلها ولا يُعتمد إلا ما يردّ ٢٠٠ */
 const CANDIDATES = [
@@ -42,14 +47,38 @@ const CANDIDATES = [
   ['ar.abdurrrahmaansudais', 'السديس', 'as-Sudais alt'],
   ['ar.ghamdi', 'سعد الغامدي', 'Saad Al-Ghamdi'],
   ['ar.uthaymeen', 'أحمد بن عثيمين', 'Ahmed ibn Uthaymeen'],
+  // أضيفت في الجولة الثانية — كلها مرشّحة لا أكثر، والاختبار هو الحكم
+  ['ar.abdullaahbasfar', 'عبد الله بصفر', 'Abdullah Basfar'],
+  ['ar.abdullaahjuhaynee', 'عبد الله الجهني', 'Abdullah Al-Juhany'],
+  ['ar.mustafakhalil', 'مصطفى الخليل', 'Mustafa Khalil'],
+  ['ar.husarymujawwad', 'الحصري مجوّد', 'Al-Husary (Mujawwad)'],
+  ['ar.mohammadayyoub', 'محمد أيوب', 'Muhammad Ayyoub'],
+  ['ar.yasser', 'ياسر الدوسري', 'Yasser Al-Dosari'],
+  ['ar.masoodwarshall', 'محمود خليل الحصري', 'Al-Husary (alt)'],
+  ['ar.alqatami', 'خليفة القطعامي', 'Khalifa Al-Qatami'],
+  ['ar.moaserarayat', 'أبو عبد الرحمن السلفي', 'As-Salafi'],
+  ['ar.husarymuallim', 'الحصري المعلّم', 'Al-Husary (Muallim)'],
+  ['ar.aliabdulrahmanhusary', 'الحصري', 'Al-Husary (alt id)'],
+  ['ar.walidalshuraimi', 'وليد الشريم', 'Walid Ash-Shuraimi'],
+  ['ar.turkiassubayd', 'تركي السبيعي', 'Turki As-Subaid'],
+  ['ar.sultan_al_qarni', 'سلطان القاري', 'Sultan Al-Qarni'],
+  ['ar.salahalbudair', 'صلاح البراك', 'Salah Al-Budair'],
+  ['ar.mohammad_al_sallal', 'محمد صال الشلبي', 'Muhammad As-Sallal'],
+  ['ar.husary_128', 'الحصري ١٢٨', 'Al-Husary (128)'],
 ];
 
 /**
  * هل الملف موجود فعلاً؟
- * نطلب آيتين مختلفتين حتى لا نحسب المصادفة ملفاً ناقصاً موجوداً،
- * ونعيد المحاولة ثلاث مرات حتى لا تُحسب مهلة الشبكة رفضاً.
+ *
+ * نطلب ملفين مختلفين حتى لا نحسب المصادفةَ ملفاً ناقصاً موجوداً:
+ * لو نجحت آية واحدة وfailedت مئة فهو ملف معلّق لا فهرس كامل.
+ * ونعيد المحاولة ثلاث مرات، فالرفض الأول قد يكون مهلة شبكة لا غياب ملف.
+ *
+ * التوقيع كان `exists(path)` بينما الاستدعاء المتكرر كان `exists(x, 1)`
+ * — الوسيط الثاني لا وجود له فيُهمل، والاكتفاء تصاعدي بلا حدّ.
+ * استُبدل بحارس `depth` صريح.
  */
-async function exists(path) {
+async function exists(path, depth = 0) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT);
@@ -58,11 +87,12 @@ async function exists(path) {
       clearTimeout(timer);
       const type = res.headers.get('content-type') || '';
       if (res.status === 200 && type.includes('mpeg')) {
+        if (depth >= 1) return true;
         const second = path.replace(/\/\d+\.mp3$/, '/100.mp3');
         if (second === path) return true;
-        return exists(second, 1);
+        return exists(second, depth + 1);
       }
-      // ٤٠٣ يعني المجلد غير موجود على خادم الملفات — لا فائدة من إعادة المحاولة
+      // ٤٠٣ و٤٠٤ يعنيان المجلد غير موجود على خادم الملفات — لا فائدة من التكرار
       if (res.status === 403 || res.status === 404) return false;
     } catch {
       clearTimeout(timer);

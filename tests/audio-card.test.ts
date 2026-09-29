@@ -64,6 +64,42 @@ describe('روابط التلاوة', () => {
     }
   });
 
+  it('كل قارئ بلا استثناء يحمل معدل آية — لا قارئ بلا ملف آيات', () => {
+    // الدرس الذي كلّفنا واجهةً كاملة: «عبد الباسط مجوّد» كان في
+    // القائمة بمعدل ٦٤، وخادم الملفات يردّ ٤٠٣ على كل ملفاته.
+    // فكان التطبيق يعرض قارئاً لا يعمل إلا على السورة كاملة، ورابطاً
+    // ميتاً على كل ضغطة آية، ولا يمكن مزامنته أصلاً لأن القياس
+    // يعتمد على ملفات الآيات.
+    //
+    // `ayahRate` إجباري في النوع، فوجوده ليس دليلاً على أنه صحيح.
+    // هذا الاختبار يجبر كل مَن يضيف قارئاً أن يمرّ على فحص الشبكة
+    // (`npm run probe:reciters`) قبل أن يدخل هنا.
+    for (const r of RECITERS) {
+      expect(r.ayahRate, `القارئ ${r.id} بلا معدل آية`).toBeTypeOf('number');
+      const u = ayahAudioUrl(r.id, 1);
+      expect(u, `رابط آية ميت للقارئ ${r.id}`).toBeTruthy();
+      expect(u).toContain(`/audio/${r.ayahRate}/${r.id}/`);
+    }
+  });
+
+  it('كل معرّفات القرّاء فريدة — لا تكرار يربك الاختيار', () => {
+    const ids = RECITERS.map((r) => r.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('أسماء القرّاء عربية فريدة — لا اسمان واحدان', () => {
+    const names = RECITERS.map((r) => r.ar);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it('القرّاء المضافون مُتحقَّق من ملف سورة متكامل أو مُعلن عنهم بلا سورة', () => {
+    // «عبد الله بصفر» له سور ناقصة على الخادم (٤ من ٩)، فلم يُعلَن له
+    // ملف سورة. لو أُعلن له لظهر للمستخدم رابط ميت لكل سورة غائبة.
+    const basefar = RECITERS.find((r) => r.id === 'ar.abdullahbasfar');
+    expect(basefar).toBeTruthy();
+    expect(hasSurahAudio('ar.abdullahbasfar')).toBe(false);
+  });
+
   it('معدّل السورة يُذكر صراحة للقرّاء الذين لهم ملف', () => {
     for (const r of SURAH_RECITERS) {
       expect([64, 128]).toContain((r as { surahRate: number }).surahRate);

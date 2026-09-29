@@ -22,8 +22,16 @@ const HOST = 'https://cdn.islamic.network';
  * ملف سورة كاملة**. افتراض معدل واحد للجميع كان يجعل روابط أربعة
  * قرّاء روابط ميتة على خادم الملفات.
  *
- * - `ayahRate`  معدل ملفات الآيات، وهو الموجود لكل قارئ في هذه القائمة
+ * - `ayahRate`  معدل ملفات الآيات، وهو **مطلوب لكل قارئ بلا استثناء**
  * - `surahRate` معدل ملف السورة الكاملة، وهو موجود لثلاثة فقط
+ *
+ * قاعدة لا تُخترق: لا يُدرج قارئ بلا `ayahRate`.
+ *   أُدرج «عبد الباسط مجوّد» أوّلَ القائمة، وفحص الشبكة كشف أن خادم
+ *   الملفات يردّ ٤٠٣ على كل ملفات آياته — له ملف سورة كاملة فقط.
+ *   فكان اختياره ثم ضغطة على أي آية رابطاً ميتاً يعرضه التطبيق للمستخدم.
+ *   وأسوأ: القياس الذي يزامن الآية يعتمد على ملفات الآيات، فمن لا
+ *   آيات له لا يمكن أن يُزامن أبداً — فيبقى غير متزامن عمداً.
+ *   الحذف أصدق من عرض قارئ لا يعمل.
  *
  * إعادة الفحص عند تغيّر القائمة: `node scripts/probe-reciters.mjs`
  */
@@ -42,20 +50,20 @@ export const RECITERS = [
     ar: 'عبد الباسط عبد الصمد — مرتل',
     en: 'Abdul Basit Abdul Samad (Murattal)',
   },
-  {
-    id: 'ar.abdulbasitmujawwad',
-    ayahRate: 64,
-    surahRate: 128,
-    ar: 'عبد الباسط عبد الصمد — مجوّد',
-    en: 'Abdul Basit Abdul Samad (Mujawwad)',
-  },
   { id: 'ar.husary', ayahRate: 128, ar: 'محمود خليل الحصري', en: 'Mahmoud Khalil Al-Husary' },
+  {
+    id: 'ar.husarymujawwad',
+    ayahRate: 128,
+    ar: 'محمود خليل الحصري — مجوّد',
+    en: 'Mahmoud Khalil Al-Husary (Mujawwad)',
+  },
   { id: 'ar.minshawi', ayahRate: 128, ar: 'محمد صديق المنشاوي', en: 'Al-Minshawi (Murattal)' },
   { id: 'ar.saoodshuraym', ayahRate: 64, ar: 'سعود الشريم', en: 'Saood Ash-Shuraym' },
   { id: 'ar.hudhaify', ayahRate: 128, ar: 'علي الحذيفي', en: 'Ali Al-Hudhaify' },
   { id: 'ar.mahermuaiqly', ayahRate: 128, ar: 'ماهر المعيقلي', en: 'Maher Al-Muaiqly' },
   { id: 'ar.shaatree', ayahRate: 128, ar: 'أبو بكر الشاطري', en: 'Abu Bakr Al-Shatri' },
   { id: 'ar.muhammadayyoub', ayahRate: 128, ar: 'محمد أيوب', en: 'Muhammad Ayyoub' },
+  { id: 'ar.abdullahbasfar', ayahRate: 64, ar: 'عبد الله بصفر', en: 'Abdullah Basfar' },
 ] as const;
 
 export type Reciter = (typeof RECITERS)[number];
