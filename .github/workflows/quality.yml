@@ -54,6 +54,10 @@ jobs:
       - name: فحص الأيقونات
         run: node scripts/check-icons.mjs
 
+      # 7) نصوص البناء سليمة — التلف لا يظهر في المصدر، بل في الحزمة
+      - name: فحص نصوص البناء
+        run: node scripts/check-labels.mjs
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

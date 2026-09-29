@@ -24,7 +24,6 @@ import {
 import type { ReciterId } from '../lib/audio';
 import { cardFileName, renderAyahCard, shareAyahImage } from '../lib/card';
 import { shareAyah, shareSurah } from '../lib/share';
-import { getBtnLabel } from '../lib/ui-labels';
 import { useAsync, useL, useT } from '../lib/hooks';
 import { useSettings } from '../lib/store';
 import type { ReadingState } from '../lib/store';
@@ -627,7 +626,7 @@ export default function SurahReader() {
               onClick={() => void shareSurah(surah.n, ayahs, (lang === 'en' ? 'en' : 'ar'))}
             >
               <ShareIcon className="h-3.5 w-3.5" />
-              <span>{getBtnLabel('shareImage', lang)}</span>
+              <span>{t('share')}</span>
             </button>
           ) : null}
 
@@ -769,16 +768,15 @@ export default function SurahReader() {
                         onClick={() => void shareImage(ay)}
                       >
                         <ShareIcon className="h-3.5 w-3.5" />
-                        <span>{getBtnLabel('shareImage', lang)}</span>
+                        <span>{t('share')}</span>
                       </button>
-                      {/* نص المشاركة — ثابت لتجنب تلف التصغير */}
                       <button
                         type="button"
                         className="btn-subtle !px-2 !py-1 text-[11px]"
                         onClick={() => void shareAyah(ay, surah!.n, (lang === 'en' ? 'en' : 'ar'))}
                       >
                         <ShareIcon className="h-3.5 w-3.5" />
-                        <span>{getBtnLabel('shareText', lang)}</span>
+                        <span>{L({ ar: 'نص', en: 'Text' })}</span>
                       </button>
                       <span className="num ms-auto text-[11px] text-slate-600">
                         {t('juz')} {ay.juz} · {t('page')} {ay.page}

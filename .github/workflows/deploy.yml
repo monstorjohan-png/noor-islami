@@ -1,23 +1,29 @@
-# النشر — بناء ثم نشر على Cloudflare Pages عند كل دفعة إلى main
+# النشر على Cloudflare Pages — مسار اختياري
 # ------------------------------------------------------------------
-# النطاق الناتج ‎*.pages.dev‎ مجاني ودائم، والتوزيع على شبكة Cloudflare
-# العالمية بلا حدّ للزيارات. لا خطوة يدوية بعد أول إعداد.
+# الموقع الحيّ الآن على GitHub Pages (انظر `pages.yml`). هذا الملف يبقي
+# مفتوحاً لمن يريد نطاقاً على Cloudflare لاحقاً، ولا يُفسد المستودع:
+# إن لم تتوفّر أسرار Cloudflare فالوظيفة تتخطّى نفسها بإشعار واضح
+# بدل أن تفشل وتُظهر المستودع أحمر عند كل دفعة.
 #
-# بوابة الجودة تعمل بالتوازي مع هذا الملف. النشر لا ينجح إلا إن نجحت
-# البوابة أيضاً — كل الوظائف تعتمد على `quality`، فأي فشل يوقف النشر.
+# لتفعيله: أضف السرّين في إعدادات المستودع ثم شغّله يدوياً.
+#   CLOUDFLARE_API_TOKEN
+#   CLOUDFLARE_ACCOUNT_ID
 
-name: Deploy
+name: Deploy (Cloudflare)
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
-  workflow_dispatch:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
 
 permissions:
   contents: read
 
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: deploy-cloudflare
   cancel-in-progress: true
 
 jobs:
@@ -28,10 +34,6 @@ jobs:
   deploy:
     needs: quality
     runs-on: ubuntu-latest
-    environment:
-      name: production
-      url: ${{ steps.deploy.outputs.deployment_url }}
-
     steps:
       - uses: actions/checkout@v4
 
@@ -42,31 +44,50 @@ jobs:
 
       - run: npm ci
 
-      # المحتوى الديني من مصادره المرخّصة، لا من تاريخ git
       - name: جلب المحتوى من المصادر المرخّصة
         run: npm run data
 
+      # Cloudflare يقدّم المشروع من جذر النطاق، فبدون أساس فرعي
       - name: البناء
         run: npm run build
 
-      # رؤوس الأمان والتوجيهات في `public/` تُنسخ مع البناء تلقائياً.
+      # الرؤوس والتوجيهات في `public/` تُنسخ مع البناء تلقائياً.
       # نتحقق من وجودها حتى لا يُنشر بناء بلا حماية بصمت.
       - name: التأكد من وجود رؤوس الأمان
         run: |
-          test -f dist/_headers || { echo "::error::dist/_headers مفقود — سيُنشر بلا رؤوس أمان"; exit 1; }
+          test -f dist/_headers || { echo "::error::dist/_headers مفقود — سيُنشر بناء بلا رؤوس أمان"; exit 1; }
           test -f dist/_redirects || { echo "::error::dist/_redirects مفقود"; exit 1; }
           grep -q "Content-Security-Policy" dist/_headers || { echo "::error::سياسة الأمان غير موجودة"; exit 1; }
-          echo "رؤوس الأمان موجودة"
+
+      # السرّان غير موجودين = المسار غير مُهيّأ، وهذا ليس فشلاً.
+      - name: هل Cloudflare مُهيّأ؟
+        id: cf
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$ACCOUNT" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Cloudflare غير مُهيّأ (لا يوجد CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID)."
+            echo "::notice::الموقع الحيّ على GitHub Pages — هذا ليس فشلاً، والنشر متخطّى."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Cloudflare مُهيّأ — سيُنشر البناء."
+          fi
 
       - name: النشر على Cloudflare Pages
         id: deploy
+        if: steps.cf.outputs.enabled == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name=noor-islami --branch=main
 
-      - name: تلخيص النشر
+      - name: الخلاصة
         run: |
-          echo "::notice::نُشر بنجاح على ${{ steps.deploy.outputs.deployment_url }}"
-          echo "الرابط الدائم: https://noor-islami.pages.dev"
+          if [ "${{ steps.cf.outputs.enabled }}" = "true" ]; then
+            echo "::notice::نُشر على https://noor-islami.pages.dev"
+          else
+            echo "::notice::الرابط الحيّ: https://monstorjohan-png.github.io/noor-islami/"
+          fi

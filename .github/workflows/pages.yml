@@ -1,7 +1,9 @@
-# النشر على GitHub Pages — رابط دائم مجاني بلا أي خادم خاص
+# النشر على GitHub Pages — الرابط الحيّ الدائم المجاني
+# ------------------------------------------------------------------
+# هذا هو مسار النشر الفعلي. لا يحتاج حساباً في أي جهة خارجية.
 #
-# يُستخدم حين لا يتوفّر حساب Cloudflare. البوابة نفسها تعمل أولاً كما في
-# `deploy.yml`، فلا يُنشر بناء مكسور.
+# البوابة (`quality.yml`) تُستدعى كوظيفة قابلة لإعادة الاستخدام، فلا
+# توجد نسخة ثانية من الفحوص هنا. أي فشل في البوابة يوقف النشر.
 #
 # الرابط: https://<صاحب-المستودع>.github.io/<اسم-المستودع>/
 
@@ -12,20 +14,24 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# صلاحية الكتابة علىPages تحتاجها خطوة النشر وحدها
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
-# لا يعمل أكثر من نشر واحد في وقت واحد، ويلغي القديم المعلّق
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
+  # بوابة الجودة — مصدر واحد للحقيقة، يعمل قبل البناء المنشور
+  gate:
+    uses: ./.github/workflows/quality.yml
+    secrets: inherit
+
   build:
+    needs: gate
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -40,30 +46,20 @@ jobs:
       - name: جلب المحتوى وتشظيئه
         run: npm run data
 
-      - name: فحص ترميز النص العربي
-        run: node scripts/check-encoding.mjs
-
-      - name: التحقق من الأذكار وأسماء الله
-        run: node scripts/verify-content.mjs
-
-      - name: فحص الأنواع
-        run: npx tsc -p tsconfig.json --noEmit
-
-      - name: الاختبارات
-        run: npx vitest run
-
-      # المسار الفرعي: Pages يقدّم المشروع تحت /<repo>/
+      # Pages يقدّم المشروع تحت /<repo>/ فالبناء يحتاج هذا الأساس
       - name: البناء على مسار المستودع
         run: npm run build
         env:
           PAGES_BASE: /${{ github.event.repository.name }}/
 
       - name: التأكد من وجود رؤوس الأمان
-        run: test -f dist/_headers || (echo "::error::dist/_headers مفقود — لن يُنشر بناء بلا حماية" && exit 1)
+        run: |
+          test -f dist/_headers || { echo "::error::dist/_headers مفقود"; exit 1; }
+          grep -q "Content-Security-Policy" dist/_headers || { echo "::error::سياسة الأمان غير موجودة"; exit 1; }
 
-      # Pages لا يقرأ `_redirects`، فتُرجع كل صفحة داخلية خطأ ٤٠٤.
+      # Pages لا يقرأ `_redirects`، فتردّ كل صفحة داخلية بخطأ ٤٠٤.
       # نسخ `index.html` باسم `404.html` يجعل Pages يخدم التطبيق كما يخدمه
-      # Cloudflare عبر `_redirects`. نسخة واحدة من truth، مصدران للتوجيه.
+      # Cloudflare عبر `_redirects`. مصدر واحد للتوجيه، مخرجان.
       - name: Fallback للمسارات الداخلية
         run: cp dist/index.html dist/404.html
 
@@ -76,6 +72,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
