@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { loadData, removeFile, isDownloaded, storageInfo, requestPersistence } from '../lib/db';
 import { getHadithIndex } from '../lib/content';
 import { audioCacheInfo, clearAudioCache } from '../lib/audio';
+import { yieldToUI } from '../lib/async';
 import { useAsync, useL, useT } from '../lib/hooks';
 import { Badge, Card, ErrorBox, Loading, ProgressBar, Section } from '../components/ui';
 import { DownloadIcon } from '../components/icons';
@@ -64,6 +65,18 @@ export default function Download() {
   const [progress, setProgress] = useState({ loaded: 0, total: 0 });
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [audioInfo, setAudioInfo] = useState({ entries: 0, bytes: 0 });
+  // مرجع حي للإلغاء — useRef لا يُعيد الرسم فتبقى الواجهة مستجيبة
+  const abortRef = useRef<AbortController | null>(null);
+
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setBusy(null);
+    setProgress({ loaded: 0, total: 0 });
+  }, []);
+
+  // الإلغاء عند مغادرة الصفحة — لا نترك تنزيلاً يجري بلا صاحب
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   // قياس ذاكرة التلاوات: بعض المتصفحات لا تُظهر حجم bodies المخزَّنة
   const refreshAudio = useCallback(async () => {
@@ -94,18 +107,24 @@ export default function Download() {
   useEffect(() => { void refresh(); }, [refresh]);
 
   const one = async (it: Item) => {
+    const ctl = new AbortController();
+    abortRef.current = ctl;
     setBusy(it.path);
     setProgress({ loaded: 0, total: it.bytes });
     setFailed((f) => ({ ...f, [it.path]: '' }));
     try {
       await loadData(it.path, {
         force: true,
+        signal: ctl.signal,
         onProgress: (loaded, total) => setProgress({ loaded, total: total || it.bytes }),
       });
       setDone((d) => ({ ...d, [it.path]: true }));
     } catch (e) {
+      // الإلغاء ليس خطأً يُعرض على المستخدم
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       setFailed((f) => ({ ...f, [it.path]: e instanceof Error ? e.message : String(e) }));
     } finally {
+      if (abortRef.current === ctl) abortRef.current = null;
       setBusy(null);
       setProgress({ loaded: 0, total: 0 });
       setSpace(await storageInfo());
@@ -113,21 +132,43 @@ export default function Download() {
   };
 
   const all = async () => {
+    // «تنزيل الكل» كان يعيد تنزيل ٦٨ ميغا كاملة في كل ضغطة، فكانت أبطأ
+    // من أن تُنساب، والمس المستخدم يجب أن ينزّل ما ينقصه فقط.
+    const todo = items.filter((it) => !done[it.path]);
+    if (!todo.length) {
+      await requestPersistence();
+      if (await requestPersistence()) setPersisted(true);
+      setSpace(await storageInfo());
+      return;
+    }
+
+    const ctl = new AbortController();
+    abortRef.current = ctl;
     setBusy('__all__');
-    let acc = 0;
-    for (const it of items) {
+    const base = total - todo.reduce((a, b) => a + b.bytes, 0);
+    let acc = base;
+    for (const it of todo) {
       const from = acc;
       acc += it.bytes;
+      setProgress({ loaded: from, total: acc });
       try {
         await loadData(it.path, {
           force: true,
+          signal: ctl.signal,
           onProgress: (loaded, t) => setProgress({ loaded: from + loaded, total: t || acc }),
         });
         setDone((d) => ({ ...d, [it.path]: true }));
-      } catch {
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') {
+          cancel();
+          return;
+        }
         setDone((d) => ({ ...d, [it.path]: false }));
       }
+      // نُفسح المجال للرسم بين ملف وآخر، فلا تتجمّد الواجهة
+      await yieldToUI();
     }
+    if (abortRef.current === ctl) abortRef.current = null;
     setBusy(null);
     setProgress({ loaded: 0, total: 0 });
     // بعد كل التنزيل نطلب التخزين الدائم مرة واحدة
@@ -173,7 +214,17 @@ export default function Download() {
             <button type="button" className="btn-primary flex-1" onClick={all} disabled={!!busy}>
               {busy === '__all__' ? <Loading /> : t('downloadAll')}
             </button>
+            {busy ? (
+              <button type="button" className="btn-ghost" onClick={cancel}>
+                {L({ ar: 'إيقاف', en: 'Stop' })}
+              </button>
+            ) : null}
           </div>
+          {busy && progress.total > 0 ? (
+            <p className="mt-1 text-center text-[11px] text-slate-500">
+              {L({ ar: 'يُنزَّل ما ينقص فقط', en: 'Only missing files are downloaded' })}
+            </p>
+          ) : null}
           {persisted === false ? (
             <button
               type="button"

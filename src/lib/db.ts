@@ -7,6 +7,7 @@
  * أي قيمة شاذة من الـ URL أو التخزين المحلي تُرفض قبل أن تصير طلب شبكة.
  */
 import { assertDataPath } from './safe';
+import { throttle } from './async';
 
 const DB_NAME = 'noor-db';
 const DB_VERSION = 1;
@@ -92,11 +93,15 @@ export interface LoadOpts {
   force?: boolean;
   /** يُستدعى أثناء التنزيل: عدد البايتات المستلمة والمجموع */
   onProgress?: (loaded: number, total: number) => void;
+  /** إلغاء يدوي — يقطع الشبكة ويحرّر الواجهة فوراً */
+  signal?: AbortSignal;
 }
 
 export async function loadData<T>(path: string, opts: LoadOpts = {}): Promise<T> {
   // نقطة الاختناق: لا مسار خارج `public/data` يتجاوز هذا السطر أبداً
   assertDataPath(path);
+
+  if (opts.signal?.aborted) throw new DOMException('أُلغي التنزيل', 'AbortError');
 
   if (!opts.force && mem.has(path)) return mem.get(path) as T;
 
@@ -114,12 +119,17 @@ export async function loadData<T>(path: string, opts: LoadOpts = {}): Promise<T>
   if (existing) return existing as Promise<T>;
 
   const p = (async () => {
-    const res = await fetch(`${import.meta.env.BASE_URL}data/${path}`);
+    const res = await fetch(`${import.meta.env.BASE_URL}data/${path}`, {
+      signal: opts.signal,
+    });
     if (!res.ok) throw new Error(`تعذّر تحميل ${path} (${res.status})`);
 
     let json: T;
     if (opts.onProgress && res.body) {
-      // نقرأ التدفق حتى نعكس التقدّم الحقيقي بدل indeterminate
+      // نقرأ التدفق حتى نعكس التقدّم الحقيقي بدل indeterminate.
+      // التقدّم مُقيَّد بـ throttle: قراءة ملف ٦ ميغا تُطلق آلاف النداءات،
+      // وكل نداء يعيد بناء الواجهة، فيتجمّد التطبيق على الهاتف.
+      const report = throttle(opts.onProgress);
       const total = Number(res.headers.get('content-length') ?? 0);
       const reader = res.body.getReader();
       const chunks: Uint8Array[] = [];
@@ -130,9 +140,11 @@ export async function loadData<T>(path: string, opts: LoadOpts = {}): Promise<T>
         if (value) {
           chunks.push(value);
           loaded += value.byteLength;
-          opts.onProgress(loaded, total);
+          report(loaded, total);
         }
       }
+      // آخر قيمة تُطرَح دائماً، وإلا بقي الشريط ناقصاً عند النهاية
+      report.flush();
       const all = new Uint8Array(loaded);
       let at = 0;
       for (const c of chunks) {
