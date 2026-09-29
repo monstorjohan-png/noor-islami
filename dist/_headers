@@ -1,0 +1,37 @@
+/*
+  رؤوس الأمان لتطبيق نور
+  Cloudflare Pages يقرأ هذا الملف كما هو ويطبّقه على كل استجابة.
+  صُمّمت لتُوقف XSS والتضمين والنقر المخترق، دون أن تكسر عامل الخدمة
+  أو الخطوط المحلية أو التلاوة من الشبكة. كل مصدر مذكور هنا مستعمل فعلاً.
+*/
+
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' https://cdn.islamic.network; connect-src 'self' https://cdn.islamic.network https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; frame-src 'none'; upgrade-insecure-requests
+
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+
+X-Content-Type-Options: nosniff
+
+Referrer-Policy: strict-origin-when-cross-origin
+
+Permissions-Policy: geolocation=(self), microphone=(), camera=(), payment=(), usb=(), bluetooth=(), interest-cohort=(), browsing-topics=(), serial=(), hid=(), magnetometer=(), accelerometer=(), gyroscope=(), autoplay=(self), fullscreen=(self), display-capture=(), local-fonts=(), sync-xhr=()
+
+Cross-Origin-Opener-Policy: same-origin
+
+Cross-Origin-Resource-Policy: same-origin
+
+X-Robots-Tag: index, follow
+
+# لا تُخزَّن استجابات الأصول الثابتة طويلاً — عامل الخدمة يتكفّل بذلك
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# ملفات البيانات قابلة للتحديث من المصدر — نُبقيها يوماً واحداً
+/data/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+# عامل الخدمة لا يُخزَّن أبداً وإلا تداخل مع التحديث التلقائي
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate

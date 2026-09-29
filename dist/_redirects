@@ -1,0 +1,8 @@
+/*
+  Cloudflare Pages: كل المسارات تخدم ملف التطبيق الواحد.
+  عاملو المسارات أولاً حتى لا يبتلع _headers و_redirects نفسَهما.
+*/
+
+/data/*   /data/:path   200
+/assets/* /assets/:path 200
+/*        /index.html  200
