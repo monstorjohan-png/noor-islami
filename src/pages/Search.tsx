@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAsync, useDebounced, useL, useT } from '../lib/hooks';
@@ -12,11 +12,14 @@ import {
   getOffsets,
 } from '../lib/content';
 import type { SearchRow } from '../lib/content';
-import { buildQuranIndexFromSearch, searchHadithLinear, searchQuran, searchQuranLinearSearch, highlight } from '../lib/search';
+import { buildQuranIndexFromSearch, searchAdhkar, searchHadithLinear, searchNames, searchQuran, searchQuranLinearSearch, highlight, type AdhkarHit, type NameHit } from '../lib/search';
 import type { Surah } from '../lib/types';
+import { ADHKAR, NAMES } from '../data/adhkar';
 import { Badge, Empty, ErrorBox, Loading, Section } from '../components/ui';
 
-type Tab = 'quran' | 'hadith';
+type Tab = 'quran' | 'hadith' | 'adhkar' | 'names';
+
+const NAME_ROWS = [...NAMES].sort((a, b) => a.n - b.n);
 
 interface QuranHit { gi: number; s: number; a: number; text: string }
 interface HadithHit { book: string; n: number; text: string; grade: string }
@@ -96,14 +99,23 @@ export default function Search() {
 
   const surahName = (n: number) => surahs.data?.find((s) => s.n === n)?.ar ?? '';
 
+  // ثابت داخل الحزمة: بلا شبكة وبلا فهرس مقلوب، فحساب مباشر في كل ضغطة
+  const adhkarHits = useMemo(
+    () => searchAdhkar(ADHKAR, debounced, 60),
+    [debounced],
+  );
+  const nameHits = useMemo(() => searchNames(NAME_ROWS, debounced, 40), [debounced]);
+
   return (
     <div className="animate-fade-in">
       <Section
         title={t('search')}
         action={
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             <TabBtn active={tab === 'quran'} onClick={() => setTab('quran')}>{t('quran')}</TabBtn>
             <TabBtn active={tab === 'hadith'} onClick={() => setTab('hadith')}>{t('hadith')}</TabBtn>
+            <TabBtn active={tab === 'adhkar'} onClick={() => setTab('adhkar')}>{t('adhkar')}</TabBtn>
+            <TabBtn active={tab === 'names'} onClick={() => setTab('names')}>{t('names')}</TabBtn>
           </div>
         }
       >
@@ -148,6 +160,10 @@ export default function Search() {
             </ul>
           </Section>
         )
+      ) : tab === 'adhkar' ? (
+        <AdhkarTab hits={adhkarHits} query={debounced} t={t} L={L} />
+      ) : tab === 'names' ? (
+        <NamesTab hits={nameHits} query={debounced} t={t} />
       ) : (
         <HadithTab
           books={books.data ?? []}
@@ -224,8 +240,78 @@ function HadithTab({
   );
 }
 
-function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
-  return <button type="button" onClick={() => onClick()} className={active ? 'chip chip-active' : 'chip'}>{children}</button>;
+function AdhkarTab({
+  hits, query, t, L,
+}: {
+  hits: AdhkarHit[]; query: string; t: TFn; L: LFn;
+}) {
+  if (!hits.length) return <Empty label={t('noResults')} />;
+  return (
+    <Section title={`${hits.length} ${t('results')}`}>
+      <ul className="space-y-2.5">
+        {hits.map((h) => {
+          const g = ADHKAR.find((x) => x.id === h.groupId);
+          return (
+            <li key={`${h.groupId}-${h.itemId}`}>
+              <Link
+                to={`/adhkar?g=${encodeURIComponent(h.groupId)}`}
+                className="card block p-4 transition-colors hover:border-gold-400/30"
+              >
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  {g && <Badge tone="gold">{L(g.title)}</Badge>}
+                  {h.count ? <Badge>{t('repeat')} <span className="num">{h.count}</span></Badge> : null}
+                </div>
+                <p className="quran-text text-ink-50 text-lg leading-[2.1]">
+                  <Marked text={h.text} query={query} />
+                </p>
+                {h.meaning ? (
+                  <p className="mt-2 text-sm leading-[1.9] text-slate-400">
+                    <Marked text={h.meaning} query={query} />
+                  </p>
+                ) : null}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </Section>
+  );
+}
+
+function NamesTab({ hits, query, t }: { hits: NameHit[]; query: string; t: TFn }) {
+  if (!hits.length) return <Empty label={t('noResults')} />;
+  return (
+    <Section title={`${hits.length} ${t('results')}`}>
+      <ul className="space-y-2.5">
+        {hits.map((h) => (
+          <li key={h.n}>
+            <Link
+              to={`/names?q=${encodeURIComponent(query)}`}
+              className="card block p-4 transition-colors hover:border-gold-400/30"
+            >
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <Badge tone="gold">
+                  {t('names')} <span className="num">{h.n}</span>
+                </Badge>
+                <Badge>{h.trans}</Badge>
+              </div>
+              <p className="quran-text text-ink-50 text-xl leading-[2]">
+                <Marked text={h.ar} query={query} />
+              </p>
+              {h.meaningEn ? (
+                <p className="mt-2 text-sm leading-[1.9] text-slate-400">
+                  <Marked text={h.meaningEn} query={query} />
+                </p>
+              ) : null}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
+function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {  return <button type="button" onClick={() => onClick()} className={active ? 'chip chip-active' : 'chip'}>{children}</button>;
 }
 
 export function GradeBadge({ g, t }: { g: string; t: TFn }) {

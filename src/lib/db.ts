@@ -131,15 +131,15 @@ export async function syncDataVersion(): Promise<boolean> {
   try {
     localStorage.setItem(DATA_STAMP, now);
   } catch {
- // التخزين ممتئى أو محظور ‎لانتابع بلا ختم. المسحً سيتكرّ في كل إقلاع, وهو أبطأ لا أخطر.
-    // في كل إقلاع، وهو أبطأ لا أخطر.
+    // التخزين ممتلئ أو محظور — نتابع بلا ختم
+    // المسح سيتكرّر في كل أقلاع، وهو أبطأ لا أخطر.
   }
 
   // لا ختم سابق = أول زيارة فعلاً، فلا داعي للمسح
   if (had === null) return false;
 
   const keys = await idbKeys();
-   // لا شيء مخزَن حواك ماحسارة, فلا داعي لتخريب جلسة المستخدم‎
+  // لا شيء مخزَن = لا خسارة، فلا داعي لتخريب جلسة المستخدم
   if (!keys.length) return false;
 
   for (const k of keys) await idbDel(k);

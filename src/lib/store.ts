@@ -21,7 +21,6 @@ export interface Bookmark {
 export interface ReadingState {
   lastSurah: number;
   lastAyah: number;
-  bookmarks: Bookmark[];
   /** ذاكرة القراءة: مصحف | تفسير | ترجمة */
   quranMode: 'mushaf' | 'tafsir' | 'translation';
   fontSize: number;
@@ -125,7 +124,6 @@ function pickReading(v: unknown): ReadingState {
   return {
     lastSurah: pickNum(o.lastSurah, 1, 114, 1),
     lastAyah: pickNum(o.lastAyah, 1, 286, 1),
-    bookmarks: pickBookmarks(o.bookmarks),
     quranMode: pick(o.quranMode, new Set(['mushaf', 'tafsir', 'translation']), 'mushaf' as ReadingState['quranMode']),
     fontSize: pickNum(o.fontSize, 14, 72, 28),
     tafsirVisible: pickBool(o.tafsirVisible, false),
@@ -182,7 +180,6 @@ const DEFAULTS = {
   reading: {
     lastSurah: 1,
     lastAyah: 1,
-    bookmarks: [],
     quranMode: 'mushaf',
     fontSize: 28,
     tafsirVisible: false,

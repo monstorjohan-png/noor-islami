@@ -3,6 +3,19 @@ import type { Lang } from '../lib/types';
 type Dict = Record<string, { ar: string; en: string }>;
 
 /**
+ * اللغة الفعلية من جذر المستند.
+ * ------------------------------------------------------------------
+ * المصدر الوحيد للحقيقة هو `useTheme` الذي يكتب `lang` على
+ * `document.documentElement`. يقرأه من غير موفّر React: الحاجز
+ * و`ui.tsx` يعملان خارج شجرة السياق، فاستعمال `useSettings`
+ * فيهما يجعلهما ينهاران وقت العطل.
+ */
+export function docLang(): Lang {
+  if (typeof document === 'undefined') return 'ar';
+  return document.documentElement.lang === 'en' ? 'en' : 'ar';
+}
+
+/**
  * رسائل التطبيق المشتركة: العربية أولاً والإنجليزية ثانياً.
  * المفاتيح مشتقّة من الكائن نفسه، فأي خطأ في اسم مفتاح يظهر عند البناء.
  */
@@ -14,6 +27,7 @@ export const T = {
   home: { ar: 'الرئيسية', en: 'Home' },
   quran: { ar: 'القرآن', en: 'Quran' },
   hadith: { ar: 'الحديث', en: 'Hadith' },
+  hifz: { ar: 'الحفظ', en: 'Hifz' },
   prayer: { ar: 'الصلاة', en: 'Prayer' },
   qibla: { ar: 'القبلة', en: 'Qibla' },
   tasbih: { ar: 'المسبحة', en: 'Tasbih' },
@@ -96,6 +110,67 @@ export const T = {
   compassNeeds: { ar: 'يحتاج التطبيق على هاتف لقياس الاتجاه', en: 'A phone is needed to measure direction' },
   north: { ar: 'شمال', en: 'N' },
 
+  // رسائل الموقع
+  geoDenied: {
+    ar: 'رُفض إذن الوصول إلى الموقع. فعّله من إعدادات المتصفح ثم أعد المحاولة.',
+    en: 'Location permission was denied. Enable it in your browser settings, then try again.',
+  },
+  geoUnavailable: {
+    ar: 'تعذّر تحديد موقعك. تأكّد من خدمة الموقع، أو اختر مدينتك من القائمة.',
+    en: 'Location unavailable. Check the location service, or pick your city from the list.',
+  },
+  geoTimeout: {
+    ar: 'انتهت مهلة تحديد الموقع. حاول مجدداً أو اختر مدينتك من القائمة.',
+    en: 'Locating timed out. Try again, or pick your city from the list.',
+  },
+  geoFailed: { ar: 'تعذّر تحديد الموقع.', en: 'Location unavailable' },
+  geoOk: { ar: 'تم تحديد موقعك بنجاح.', en: 'Your location was set.' },
+  noTimesHere: { ar: 'لا توجد أوقات متاحة لهذا الموقع.', en: 'No prayer times for this location.' },
+  km: { ar: 'كم', en: 'km' },
+
+  // ملاحظات الأذان والحساب
+  calcNote: {
+    ar: 'طريقة الحساب تختلف باختلاف الجهة المعتمدة، والمذهب يؤثر على وقت العصر وحده.',
+    en: 'Calculation methods differ by authority, and the madhab affects Asr only.',
+  },
+  athanToneHint: {
+    ar: 'نغمة إلكترونية قصيرة تُولَّد في المتصفح — بلا ملف أذان مسجَّل.',
+    en: 'A short electronic tone generated in the browser — no recorded athan file.',
+  },
+  athanAudioFailed: {
+    ar: 'تعذّر تشغيل الصوت على هذا المتصفح. جرّب متصفحاً آخر أو فعّل التنبيهات.',
+    en: 'Sound could not play in this browser. Try another browser, or turn on notifications.',
+  },
+  athanToneNote: {
+    ar: 'نغمة التنبيه نغمة إلكترونية مبسَّطة وليست أذاناً مسجَّلاً.',
+    en: 'The alert tone is a simple electronic tone, not a recorded athan.',
+  },
+  athanUnsupported: {
+    ar: 'متصفحك لا يدعم الإشعارات. التنبيه الصوتي يعمل وحده.',
+    en: 'Your browser has no notifications. The sound alert still works.',
+  },
+  athanDenied: {
+    ar: 'إذن الإشعارات مرفوض. فعّله من إعدادات المتصفح.',
+    en: 'Notification permission was denied. Enable it in your browser settings.',
+  },
+  athanNeedGesture: {
+    ar: 'اضغط على الصفحة ثم أعد التفعيل للسماح بالإشعارات.',
+    en: 'Tap the page, then toggle again to allow notifications.',
+  },
+  scholarlyNote: { ar: 'تنبيه علمي', en: 'Scholarly note' },
+
+  // حاجز الأخطاء — تعمل بلا سياق، فتُقرأ من جذر المستند
+  crashTitle: { ar: 'تعطّل التطبيق', en: 'The app stopped' },
+  crashBody: {
+    ar: 'حدث خطأ غير متوقع أثناء العرض. بياناتك المحفوظة على هذا الجهاز لم تُمسّ بعد.',
+    en: 'An unexpected error occurred while rendering. Your saved data on this device is untouched.',
+  },
+  clearDeviceData: { ar: 'مسح البيانات المحفوظة على هذا الجهاز', en: 'Clear data on this device' },
+  clearDeviceDataNote: {
+    ar: 'لن يُمسح شيء من محتواك المحمّل — فقط إعدادات هذا الجهاز.',
+    en: 'Nothing you downloaded is removed — only this device’s settings.',
+  },
+
   // التقويم
   hijri: { ar: 'هجري', en: 'Hijri' },
   gregorian: { ar: 'ميلادي', en: 'Gregorian' },
@@ -109,11 +184,8 @@ export const T = {
   sleep: { ar: 'أذكار النوم', en: 'Before sleep' },
   waking: { ar: 'أذكار الاستيقاظ', en: 'On waking' },
   mosque: { ar: 'أذكار المسجد', en: 'Mosque' },
-  atHome: { ar: 'أذكار المنزل', en: 'At home' },
   travel: { ar: 'أذكار السفر', en: 'Travel' },
-  rain: { ar: 'أذكار المطر', en: 'Rain & wind' },
   distress: { ar: 'أذكار الهم والحزن', en: 'Distress' },
-  quranDhikr: { ar: 'ورد القرآن', en: 'Quran recitation' },
   source: { ar: 'المصدر', en: 'Source' },
   reference: { ar: 'المرجع', en: 'Reference' },
   repeat: { ar: 'التكرار', en: 'Repeat' },

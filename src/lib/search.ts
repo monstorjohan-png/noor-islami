@@ -134,6 +134,101 @@ export function hasHadithIndex(book: string): boolean {
   return hadithIndexes.has(book);
 }
 
+/* ---------- البحث في الأذكار وأسماء الله ---------- */
+
+/*
+ * فارق جوهري عن فهرس القرآن: هذه البيانات محمّلة داخل الحزمة نفسها
+ * (أقل من ١٠٠ كيلوبايت) لا ملفاً بعيداً، فلا داعي لفهرس مقلوب ولا
+ * تحميل كسول — وبحث خطّي واحد يكفي ويعطي نتائج أدقّ.
+ *
+ * وبحث خطّي لا فهرس مقلوب أيضاً لسبب ثان: أذكار الكتاب مثل
+ * «سبحان الله وبحمده» متكرّرة في ست مجموعات، والفهرس يرجّع موضعاً
+ * واحداً لكل تطابق بينما الكثافة هناك في كل موضع.
+ */
+
+export interface AdhkarSearchGroup {
+  id: string;
+  items: Array<{ id: string; ar: string; meaning?: string; count?: number }>;
+}
+
+export interface AdhkarHit {
+  groupId: string;
+  itemId: string;
+  text: string;
+  meaning?: string;
+  count?: number;
+}
+
+/** يبحث في نصّ الأذكار ومعانيها، ويعيد عنصراً لكل مجموعة بحدّ أقصى واحد */
+export function searchAdhkar(
+  groups: AdhkarSearchGroup[],
+  query: string,
+  limit = 60,
+): AdhkarHit[] {
+  const q = normalizeQuery(query);
+  if (!q) return [];
+  const bare = isArabicQuery(q) ? q.replace(/[ً-ٰٟ]/g, '') : q;
+  const out: AdhkarHit[] = [];
+  for (const g of groups) {
+    for (const it of g.items) {
+      const ar = normalizeAr(it.ar);
+      const meaning = it.meaning ? normalizeAr(it.meaning) : '';
+      if (ar.includes(q) || ar.includes(bare) || (meaning && (meaning.includes(q) || meaning.includes(bare)))) {
+        out.push({ groupId: g.id, itemId: it.id, text: it.ar, meaning: it.meaning, count: it.count });
+        break;
+      }
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
+}
+
+export interface NameSearchDoc {
+  n: number;
+  ar: string;
+  trans: string;
+  meaning: { ar?: string; en?: string };
+}
+
+export interface NameHit {
+  n: number;
+  ar: string;
+  trans: string;
+  meaningAr: string;
+  meaningEn: string;
+  /** مطابقة الاسم وحده أثقل وزناً من مطابقة المعنى */
+  exact: boolean;
+}
+
+export function searchNames(docs: NameSearchDoc[], query: string, limit = 40): NameHit[] {
+  const q = normalizeQuery(query);
+  if (!q) return [];
+  const bare = isArabicQuery(q) ? q.replace(/[ً-ٰٟ]/g, '') : q;
+  const lower = q.toLowerCase();
+  const out: NameHit[] = [];
+  for (const d of docs) {
+    const ar = normalizeAr(d.ar);
+    const mAr = normalizeAr(d.meaning.ar ?? '');
+    const mEn = (d.meaning.en ?? '').toLowerCase();
+    const nameHit = ar.includes(q) || ar.includes(bare);
+    const otherHit =
+      (!!mAr && (mAr.includes(q) || mAr.includes(bare))) || mEn.includes(lower);
+    if (nameHit || otherHit) {
+      out.push({
+        n: d.n,
+        ar: d.ar,
+        trans: d.trans,
+        meaningAr: d.meaning.ar ?? '',
+        meaningEn: d.meaning.en ?? '',
+        exact: nameHit,
+      });
+      if (out.length >= limit) break;
+    }
+  }
+  // المطابقة على الاسم تسبق المطابقة في المعنى، وإلا ابتلع المعنىُ الأسماءَ كلها
+  return out.sort((a, b) => Number(b.exact) - Number(a.exact));
+}
+
 /* ---------- تمييز النتائج ---------- */
 
 /** حدّ أعلى لعدد المقاطع — استعلام قصير على نص طويل كان يبني آلاف العناصر */

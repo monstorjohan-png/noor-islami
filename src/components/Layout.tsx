@@ -8,10 +8,21 @@ import SearchBar from './SearchBar';
 /**
  * عنصر القائمة: `key` من القاموس المشترك، أو `label` ثنائي اللغة حين لا
  * يكون للصفحة مفتاح فيه — فالمفتاح يضاف من مالك القاموس لا من هنا.
+ *
+ * `NavKey` مقيد بالمفاتيح الموجودة فعلاً في القاموس — إضافة مفتاح وهمي
+ * كسر الترجمة عند إزاحة الشريط، و`string` وحده لا يكتشفه.
  */
+type NavKey =
+  | 'home'
+  | 'quran'
+  | 'hifz'
+  | 'prayer'
+  | 'adhkar'
+  | 'more';
+
 const MAIN_NAV: Array<{
   to: string;
-  key: string;
+  key: NavKey;
   label?: { ar: string; en: string };
   Icon: (p: { className?: string }) => JSX.Element;
   end?: boolean;

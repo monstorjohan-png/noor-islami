@@ -6,9 +6,15 @@
  *
  * سبب الرمية الأول ليس خللاً في React بل تخزين محلي محرَّب: كل ما نخزّنه
  * محلياً قابل للتحرير من أي نص على نفس الأصل. فالحاجز ليس رفاهية.
+ *
+ * قاعدة هنا: لا يستعمل هذا الملف `useSettings` ولا `useT` ولا `ui.tsx`.
+ * الحاجز يعمل بعد أن يكون أي موفّر سياق قد انهار أصلاً، فسحبُ سياقاً
+ * إليه يجعله ينهار داخل الحاجز. اللغة تُقرأ من `document.documentElement.lang`
+ * وهي نفس القيمة التي يكتبها `useTheme` على الجذر.
  */
 import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
+import { docLang, t } from '../i18n';
 
 interface Props {
   children: ReactNode;
@@ -63,16 +69,22 @@ export class ErrorBoundary extends Component<Props, State> {
     const { error, info } = this.state;
     if (!error) return this.props.children;
 
+    // بلا سياق: اللغة من الجذر مباشرة
+    const lang = docLang();
+    const say = (k: string) => t(k, lang);
+
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-6" dir="rtl">
+      <div
+        className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-6"
+        dir={lang === 'ar' ? 'rtl' : 'ltr'}
+        lang={lang}
+      >
         <div className="max-w-md w-full text-center">
           <div className="text-5xl mb-4" aria-hidden="true">
             ⚠️
           </div>
-          <h1 className="text-xl font-bold mb-2">تعطّل التطبيق</h1>
-          <p className="text-slate-400 mb-6 leading-relaxed">
-            حدث خطأ غير متوقع أثناء العرض. بياناتك المحفوظة على هذا الجهاز لم تُمسّ بعد.
-          </p>
+          <h1 className="text-xl font-bold mb-2">{say('crashTitle')}</h1>
+          <p className="text-slate-400 mb-6 leading-relaxed">{say('crashBody')}</p>
 
           {info && (
             <pre
@@ -91,20 +103,18 @@ export class ErrorBoundary extends Component<Props, State> {
               onClick={this.reload}
               className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white py-3 font-semibold"
             >
-              إعادة المحاولة
+              {say('retry')}
             </button>
             <button
               type="button"
               onClick={() => void this.reset()}
               className="rounded-xl border border-slate-700 hover:bg-slate-900 text-slate-300 py-3"
             >
-              مسح البيانات المحفوظة على هذا الجهاز
+              {say('clearDeviceData')}
             </button>
           </div>
 
-          <p className="text-xs text-slate-600 mt-6">
-            لن يُمسح شيء من محتواك المحمّل — فقط إعدادات هذا الجهاز.
-          </p>
+          <p className="text-xs text-slate-600 mt-6">{say('clearDeviceDataNote')}</p>
         </div>
       </div>
     );

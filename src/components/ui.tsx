@@ -1,6 +1,7 @@
 /** عناصر واجهة مشتركة — بلا حالة داخلية، تعرض فقط */
 
 import type { ReactNode } from 'react';
+import { docLang, t } from '../i18n';
 
 /* ---------- مؤشرات الحالة ---------- */
 
@@ -23,13 +24,15 @@ export function Loading({ label }: { label?: string }) {
 }
 
 export function ErrorBox({ error, onRetry }: { error: Error; onRetry?: () => void }) {
+  // المكوّن بلا سياق، والحاجز قد يستدعيه بعد انهياره — فنقرأ من الجذر
+  const lang = docLang();
   return (
-    <div className="card flex flex-col items-center gap-3 p-8 text-center">
+    <div className="card flex flex-col items-center gap-3 p-8 text-center" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <span className="text-3xl">⚠️</span>
       <p className="text-sm text-slate-300">{error.message}</p>
       {onRetry ? (
         <button type="button" className="btn-ghost" onClick={onRetry}>
-          ↻ إعادة المحاولة
+          ↻ {t('retry', lang)}
         </button>
       ) : null}
     </div>

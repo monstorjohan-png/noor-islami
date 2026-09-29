@@ -8,92 +8,52 @@
 
 ---
 
-## 1. الإصلاحات العاجلة (هذا الأسبوع)
+## ✅ مُنجز (الأسابيع السابقة)
+
+| الميزة | الملفات | الحالة |
+|----------|---------|-------|
+| **مشاركة الآيات/السور** (Web Share API + fallback) | `lib/share.ts`، `SurahReader.tsx` | منجز — يختبر في المتصفح |
+| **خطة حفظ يومية + مراجعة** (Hifz) | `lib/hifz.ts`، `pages/Hifz.tsx` | منجز — ٣٧ اختباراً |
+| **إحصائيات شخصية** (محفوظات، سلسلة أيام، تقدم السور) | مدمج في `Hifz.tsx` | منجز |
+| **قرّاء إضافيون** (إجمالي ١١) | `lib/audio.ts`، `scripts/probe-reciters.mjs` | منجز — كل قارئ مختبر بطلب حقيقي |
+| **لوحات ألوان مميزة** (٥ لوحات، CSS vars) | `lib/theme.ts`، `styles/index.css` | منجز — ٣١ اختباراً، تباين ≥ ٤.٥ |
+| **تثبيت PWA** (Android + iOS، لوحة يدوية) | `lib/install.ts`، `InstallPanel.tsx` | منجز — ١٨ اختباراً |
+| **مزامنة نسخة البيانات** (DATA_VERSION=2) | `lib/db.ts` | منجز — ٧ اختبارات |
+| **تنزيل ملفات الصوت** (ماخان)، مؤشر تقدم، إلغاء | `lib/async.ts`، `Download.tsx` | منجز |
+| **مزامنة الآية دقيقة** (قياس حقيقي لكل آية) | `lib/timing.ts` | منجز — ١٧ اختباراً |
+| **Media Session** (إشعارات، قفل الشاشة، قارئ التالي/السابق) | `lib/mediasession.ts` | منجز |
+| **وصولية**: `prefers-reduced-motion` + `:focus-visible` | `styles/index.css` | منجز |
+| **بحث يغطي الأذكار + أسماء الله** | `lib/search.ts`، `Search.tsx` | منجز |
+
+---
+
+## 🔄 قيد العمل / التالي (أسبوعان)
 
 | # | المهمة | الملفات المتأثرة | الاختبار |
 |---|---------|------------------|----------|
-| 1.1 | تصحيح بقاء القارئ المختار بعد التنقل (localStorage لا يُحدّث) | `store.ts`، `audio.ts` | متصفح: تغيير قارئ → تنقل ←→ رجوع → القارئ محفوظ |
-| 1.2 | زر "استماع" يظهر للقرّاء بلا ملف سورة (يُعطى ٤٠٤) | `SurahReader.tsx` | متصفح: اختيار الحصري → زر الاستماع لا يظهر / رسالة صحيحة |
-| 1.3 | `manifest.webmanifest` رابط نسبي يكسر المسارات العميقة | `index.html`، `vite.config.ts` | متصفح: `/quran/2/255` → البيان يُحمّل |
-| 1.4 | تفعيل مشاركة الآيات/السور (Web Share API + fallback) | `lib/share.ts` جديد، `SurahReader.tsx` | متصفح: زر مشاركة → يفتح قائمة النظام |
-| 1.5 | خط عربي واحد نظيف مع `font-display: swap` | `public/fonts/`، `styles/index.css` | DevTools: لا `font-face` مكرر، لا CLS |
+| 1 | **نسخة احتياطية / تصدير** (JSON، استيراد، دمج لا استبدال) | `lib/backup.ts` (جديد)، `BackupPanel.tsx` (جديد)، `Settings.tsx` | `tests/backup.test.ts` |
+| 2 | **إصلاح لغات: Prayer + ErrorBoundary + ui.tsx + About** | `Prayer.tsx`، `ErrorBoundary.tsx`، `ui.tsx`، `About.tsx`، `i18n/index.ts` | `tests/i18n.test.ts` (فحص المصدر) |
+| 3 | **إصلاح رابط البيان للمسارات العميقة** | `index.html`، `vite.config.ts` | متصفح: `/quran/2/255` → البيان يُحمّل |
+| 4 | **تدريب التلاوة** (استماع → إخفاء → تسجيل/مقارنة) | `lib/recitation.ts` (جديد)، `pages/RecitePractice.tsx` (جديد) | اختبار التسجيل/التشغيل |
+| 5 | **تنظيم الخطوط** (ملف واحد، `font-display: swap`) | `public/fonts/`، `styles/fonts.css` (جديد)، `styles/index.css` | DevTools: لا `font-face` مكرر، لا CLS |
+| 6 | **Capacitor APK** (نفس `dist/`، أيقونات متكيفة) | `capacitor.config.ts`، `scripts/build-apk.mjs` | `npm run build:apk` ينتج APK موقع |
 
 ---
 
-## 2. ميزات الحفظ والمراجعة (أسبوعان)
+## 📋 مهام خلفية (حسب الأولوية)
 
-| # | الميزة | الوصف التقني | الملفات الجديدة |
-|---|--------|-------------|----------------|
-| 2.1 | **خطة حفظ يومية** | هدف آيات/يوم، تقويم تقدم، تذكير محلي | `lib/hifz.ts`، `pages/Hifz.tsx` |
-| 2.2 | **تدريب المراجعة** | تكرار متباعد (SM-2 مبسط)، بطاقات آية/تفسير | `lib/review.ts`، `pages/Review.tsx` |
-| 2.3 | **اختبار التلاوة** | استماع → إخفاء النص → تسجيل/مقارنة (Web Audio API) | `lib/recitation.ts`، `pages/RecitePractice.tsx` |
-| 2.3 | **إحصائيات شخصية** | مخططات تقدم، سلسلة أيام، وقت المراجعة | `components/Stats.tsx` |
-
-**قاعدة بيانات محلية فقط** — IndexedDB عبر `db.ts` الحالي، لا خادم خارجي.
-
----
-
-## 3. القرّاء الإضافيون (مستمر)
-
-| الخطوة | الإجراء |
-|--------|---------|
-| 3.1 | تشغيل `npm run probe:reciters --write` أسبوعياً |
-| 3.2 | إضافة مصدر بديل: `everyayah.com` / `download.quranicaudio.com` للمزيد |
-| 3.3 | كل قارئ جديد = سطر في `audio.ts` + اختبار في `audio-card.test.ts` |
+| # | المهمة | السبب |
+|---|---------|-------|
+| 7 | **إصلاح `ReadingState.bookmarks` الميت** | مزال من `store.ts` — فُعل في هذه الجولة |
+| 8 | **حذف `VITE_SYNC` الميت + `sync.ts` ٣٣٦ سطر** | بوابة مزامنة لا تعمل — كود ميت |  
+| 9 | **فحص هاش للبيانات المخزّنة** (SHA-256 من `manifest.json`) | `lib/db.ts` — حماية من ملف تالف |
+| 10 | **توحيد التخزين المزدوج** (IndexedDB + Cache Storage) | `db.ts`، `vite.config.ts` — كل ملف يُخزن مرتين |
+| 11 | **اختبارات مكونات React** (React Testing Library) | `tests/` — صفر اختبارات واجهة حالياً |
+| 12 | **Lighthouse CI + Playwright E2E** | بوابة جودة مستمرة في CI |
 
 ---
 
-## 4. تطبيق الهاتف (APK) — متطابق ١٠٠٪
-
-| التقنية | السبب |
-|----------|-------|
-| **Capacitor** | يغلّف PWA الحالية بلا تعديل للكود، ينتج APK/AAB و iOS |
-| **نفس `dist/`** | البناء الواحد يخدم الويب + الهاتف |
-| **أبعاد آمنة** | `safe-area-inset-*`، `viewport-fit=cover`، لا `fixed` معطّل |
-| **أيقونات متكيفة** | `icon-maskable-512.png` موجود، نولّد الباقي |
-
-**الملفات المضافة فقط:**
-```
-capacitor.config.ts
-android/          (يولّده Capacitor، لا نلمسه يدوياً)
-ios/              (يولّده Capacitor)
-scripts/build-apk.mjs   (أمر واحد: `npm run build:apk`)
-```
-
----
-
-## 5. تنظيم الخطوط (منفصل، لا كسر)
-
-```
-public/fonts/
-├── amiri/           # خط المصحف — Amiri Quran
-│   ├── AmiriQuran-Regular.woff2
-│   └── AmiriQuran-Bold.woff2
-├── cairo/           # واجهة عربية — Cairo
-│   ├── Cairo-Regular.woff2
-│   ├── Cairo-Medium.woff2
-│   └── Cairo-Bold.woff2
-└── inter/           # أرقام/إنجليزي — Inter
-    ├── Inter-Regular.woff2
-    └── Inter-Medium.woff2
-```
-
-`styles/fonts.css` — **ملف واحد** يستدعى من `index.css`، لا `@font-face` متناثر.
-
----
-
-## 6. المشاركة المحسّنة
-
-| النوع | التنفيذ |
-|-------|---------|
-| آية بصورة | `lib/card.ts` موجود → زر مشاركة في كل بطاقة |
-| سورة كاملة | توليد صورة طويلة أو نص منسق |
-| دعوة التطبيق | رابط `noor-islami` مع نص عربي/إنجليزي |
-| Web Share API | أولوية، fallback لنسخ الرابط |
-
----
-
-## 7. البنية المنظمة (لا تعقيد)
+## البنية المستهدفة (لا كسر)
 
 ```
 src/
@@ -102,7 +62,8 @@ src/
 │   ├── hifz/
 │   ├── review/
 │   ├── recitation/
-│   └── share/
+│   ├── share/
+│   └── backup/         # جديد
 ├── shared/             # كود مشترك حقيقي
 │   ├── ui/             # مكونات عامة (Button, Card, Modal)
 │   ├── hooks/          # useLocalStorage, useMedia, إلخ
@@ -115,31 +76,27 @@ src/
 
 ---
 
-## 8. بوابة الجودة المستمرة (إلزامية)
+## بوابة الجودة (إلزامية لكل دفعة)
 
-كل دفعة (`git push`) يجب أن ترى:
 ```
 ✓ check-encoding   ✓ verify-content   ✓ tsc
 ✓ vitest           ✓ build            ✓ check-icons
-✓ (جديد) lighthouse-ci   ✓ (جديد) playwright e2e
+✓ (قيد الإضافة) lighthouse-ci   ✓ (قيد الإضافة) playwright e2e
 ```
 
 ---
 
-## جدول التنفيذ المقترح
+## جدول التنفيذ المقترح (محدث)
 
 | الأسبوع | التركيز | التسليم |
 |---------|---------|---------|
-| 1 | إصلاحات 1.1–1.5 + تنظيم الخطوط | صفر أخطاء، خط واحد نظيف |
-| 2 | ميزة الحفظ (2.1) + اختباراتها | صفحة `/hifz` تعمل بلا إنترنت |
-| 3 | المراجعة (2.2) + التلاوة (2.3) | `/review`، `/recite` |
-| 4 | Capacitor + APK + أيقونات | `npm run build:apk` ينتج APK موقع |
-| 5 | مشاركة + قرّاء إضافيون + Lighthouse CI | ٩٠+ على كل المحاور |
+| 1 | نسخة احتياطية (1) + إصلاح لغات (2) + رابط البيان (3) | صفر أخطاء، لغات كاملة |
+| 2 | تدريب التلاوة (4) + تنظيم الخطوط (5) | `/recite` يعمل، خط واحد نظيف |
+| 3 | Capacitor + APK + أيقونات (6) | `npm run build:apk` ينتج APK موقع |
+| 4 | مهام خلفية 7–11 + Lighthouse CI | كود أنظف، بوابة CI مكتملة |
 
 ---
 
-## البدء الآن — المهمة 1.1: إصلاح بقاء القارئ
+## البدء الآن — المهمة 1: نسخة احتياطية / تصدير
 
-السبب: `store.ts` يخزّن `reciter` لكن `sanitizeHydration` لا يعيد بناءه من `localStorage` بشكل صحيح عند تغيير القارئ من الواجهة.
-
-سأصلحها وأتحقق في المتصفح، ثم أدفع.
+السبب: المستخدم لا طريقة له لاسترجاع إعداداته/حفظه عند مسح الذاكرة أو تغيير الجهاز. هذه أهم فجوة من ناحية معاناة المستخدم الفعلية.

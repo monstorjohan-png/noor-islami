@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { getAyah, getHadith, type AyahView } from '../lib/content';
 import { useAsync, useL, useT } from '../lib/hooks';
 import { useSettings } from '../lib/store';
@@ -388,7 +389,11 @@ export default function Adhkar() {
   const L = useL();
   const { msg, show } = useToast();
 
-  const [tab, setTab] = useState('all');
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState(() => {
+    const g = params.get('g');
+    return g && ADHKAR.some((x) => x.id === g) ? g : 'all';
+  });
   const nowHours = useNowHours();
 
   const progress = (useSettings((s) => s.adhkarProgress) ?? {}) as Record<string, unknown>;

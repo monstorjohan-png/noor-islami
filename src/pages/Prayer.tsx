@@ -33,6 +33,9 @@ const ALERT_WINDOW = 90_000;
 
 /* ---------- أدوات محلية ---------- */
 
+/** دالة الترجمة التي تعيدها useT */
+type TFn = (k: string) => string;
+
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
 const midnightOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -66,12 +69,13 @@ function sessionSet(key: string, value: string): boolean {
   }
 }
 
-function geoErrorMessage(e: unknown): string {
+/** رسائل رفض إذن الموقع — كل واحدة لها مقابل في القاموس المشترك */
+function geoErrorMessage(e: unknown, t: TFn): string {
   const code = typeof e === 'object' && e !== null ? (e as { code?: number }).code : undefined;
-  if (code === 1) return 'رُفض إذن الوصول إلى الموقع. فعّله من إعدادات المتصفح ثم أعد المحاولة.';
-  if (code === 2) return 'تعذّر تحديد موقعك. تأكّد من خدمة الموقع، أو اختر مدينتك من القائمة.';
-  if (code === 3) return 'انتهت مهلة تحديد الموقع. حاول مجدداً أو اختر مدينتك من القائمة.';
-  return e instanceof Error ? e.message : 'تعذّر تحديد الموقع.';
+  if (code === 1) return t('geoDenied');
+  if (code === 2) return t('geoUnavailable');
+  if (code === 3) return t('geoTimeout');
+  return e instanceof Error ? e.message : t('geoFailed');
 }
 
 /**
@@ -194,16 +198,16 @@ export default function Prayer() {
         const body = clock(todayTimes[key], lang);
 
         if (!playAlertTone(athanVolume)) {
-          setAthanMsg('تعذّر تشغيل الصوت على هذا المتصفح. جرّب متصفحاً آخر أو فعّل التنبيهات.');
+          setAthanMsg(t('athanAudioFailed'));
         } else {
-          setAthanMsg('نغمة التنبيه نغمة إلكترونية مبسَّطة وليست أذاناً مسجَّلاً.');
+          setAthanMsg(t('athanToneNote'));
         }
 
         if (notifications) {
           void notifyNow(`${t('athan')}: ${prayerName}`, body, `noor-athan-${key}`).then((outcome) => {
-            if (outcome === 'unsupported') setAthanMsg('متصفحك لا يدعم الإشعارات. التنبيه الصوتي يعمل وحده.');
-            else if (outcome === 'denied') setAthanMsg('إذن الإشعارات مرفوض. فعّله من إعدادات المتصفح.');
-            else if (outcome === 'need-permission') setAthanMsg('اضغط على الصفحة ثم أعد التفعيل للسماح بالإشعارات.');
+            if (outcome === 'unsupported') setAthanMsg(t('athanUnsupported'));
+            else if (outcome === 'denied') setAthanMsg(t('athanDenied'));
+            else if (outcome === 'need-permission') setAthanMsg(t('athanNeedGesture'));
           });
         }
         break;
@@ -242,10 +246,10 @@ export default function Prayer() {
         const { latitude, longitude } = pos.coords;
         const nearest = nearestCity(latitude, longitude);
         set('location', { lat: latitude, lon: longitude, label: `${nearest.ar} — ${nearest.country}` });
-        setGeoMsg('تم تحديد موقعك بنجاح.');
+        setGeoMsg(t('geoOk'));
       })
       .catch((e: unknown) => {
-        setGeoMsg(geoErrorMessage(e));
+        setGeoMsg(geoErrorMessage(e, t));
       })
       .finally(() => {
         setGpsBusy(false);
@@ -293,7 +297,7 @@ export default function Prayer() {
           </Card>
         ) : !next || !remaining ? (
           <Card className="text-center text-sm text-slate-400">
-            لا توجد أوقات متاحة لهذا الموقع.
+            {t('noTimesHere')}
           </Card>
         ) : (
           <div className="card overflow-hidden p-0">
@@ -386,7 +390,7 @@ export default function Prayer() {
               <span className="text-sm text-slate-100">{location.label}</span>
             </Row>
             <Row label={t('qiblaDistance')}>
-              <span className="num text-sm text-gold-200">{kaabaKm?.toLocaleString('en-US')} كم</span>
+              <span className="num text-sm text-gold-200">{kaabaKm?.toLocaleString('en-US')} {t('km')}</span>
             </Row>
             <Row label={t('qiblaDirection')}>
               <Link to="/qibla" className="text-sm text-gold-200 underline decoration-dotted">
@@ -448,9 +452,7 @@ export default function Prayer() {
               </option>
             ))}
           </select>
-          <p className="mt-2 text-xs text-slate-500">
-            طريقة الحساب تختلف باختلاف الجهة المعتمدة، والمذهب يؤثر على وقت العصر وحده.
-          </p>
+          <p className="mt-2 text-xs text-slate-500">{t('calcNote')}</p>
         </Card>
       </Section>
 
@@ -461,7 +463,7 @@ export default function Prayer() {
             on={athanEnabled}
             onChange={(v) => set('athanEnabled', v)}
             label={athanEnabled ? t('athanOn') : t('athanOff')}
-            hint="نغمة إلكترونية قصيرة تُولَّد في المتصفح — بلا ملف أذان مسجَّل."
+            hint={t('athanToneHint')}
           />
           <div className="mt-2">
             <label className="mb-1.5 flex items-center justify-between text-sm text-slate-300" htmlFor="athan-volume">
@@ -485,7 +487,7 @@ export default function Prayer() {
 
       {/* ---------- تنبيه علمي ---------- */}
       <div className="mb-7 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4">
-        <p className="mb-1 text-sm font-semibold text-rose-200">تنبيه علمي</p>
+        <p className="mb-1 text-sm font-semibold text-rose-200">{t('scholarlyNote')}</p>
         <p className="text-xs leading-relaxed text-rose-100/90">{t('disclaimer')}</p>
       </div>
     </div>

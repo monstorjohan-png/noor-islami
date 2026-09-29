@@ -128,7 +128,10 @@ export default function About() {
                 </Badge>
               </div>
               <p className="text-xs leading-relaxed text-slate-400">
-                {L({ ar: 'فُحص كل ذكر وكل اسم: تأكد أن المرجع موجود في المصدر، وأن نص المصدر يحوي النص المطلوب، وأن الرقم المعروض يطابق المرجع الفعلي.' })}
+                {L({
+                  ar: 'فُحص كل ذكر وكل اسم: تأكد أن المرجع موجود في المصدر، وأن نص المصدر يحوي النص المطلوب، وأن الرقم المعروض يطابق المرجع الفعلي.',
+                  en: 'Every dhikr and every name was checked: the reference exists in the source, the source text contains the wording, and the number shown matches the actual reference.',
+                })}
               </p>
               <p className="num mt-1 text-[11px] text-slate-600">
                 {report.data.adhkarResolved}/{report.data.adhkarChecked} {L({ ar: 'ذكراً', en: 'adhkar' })}
