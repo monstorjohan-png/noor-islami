@@ -32,6 +32,10 @@ const ALLOWED = new Set([
   'Vite', 'PWA', 'IndexedDB', 'Workbox', 'Tailwind', 'React', 'TypeScript',
   'JavaScript', 'Service', 'Worker', 'API', 'URL', 'JSON', 'CSS', 'HTML',
   'TS', 'JS', 'OfflineReady', 'goldsmith',
+  // أسماء المتصفحات وأدوات النظام: أسماء تقنية تُذكر داخل الجمل العربية
+  // عمداً في التوثيق. تلفُه لا يشبه «يمسّه.sleep».
+  'Chrome', 'Edge', 'Opera', 'Safari', 'Firefox', 'CORS',
+  'MediaSession', 'WakeLock', 'AbortController',
 ]);
 
 /**

@@ -24,6 +24,15 @@ import {
 import type { ReciterId } from '../lib/audio';
 import { cardFileName, renderAyahCard, shareAyahImage } from '../lib/card';
 import { shareAyah, shareSurah } from '../lib/share';
+import {
+  WakeGuard,
+  clearMediaHandlers,
+  mediaSessionSupported,
+  registerMediaHandlers,
+  setMediaMetadata,
+  setMediaPlayback,
+} from '../lib/mediasession';
+import { ayahAt, boundariesFor, cachedTiming, measureTiming } from '../lib/timing';
 import { useAsync, useL, useT } from '../lib/hooks';
 import { useSettings } from '../lib/store';
 import type { ReadingState } from '../lib/store';
@@ -316,12 +325,27 @@ export default function SurahReader() {
 
   /* ---------- التلاوة ---------- */
 
+  /** يحمي الشاشة من الإطفاء أثناء الاستماع — أداة واحدة لكل التشغيل */
+  const wakeRef = useRef(new WakeGuard());
+  const wake = wakeRef.current;
+  const appName = t('appName');
+  const iconUrl = `${import.meta.env.BASE_URL}icons/icon-192.png`;
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playList = useRef<AyahView[]>([]);
   const nodes = useRef(new Map<string, HTMLElement>());
 
   const [playing, setPlaying] = useState<string | null>(null);
   const [current, setCurrent] = useState<string | null>(null);
+  /** حالة المزامنة: `null` تعني أنها لم تُقَس بعد لهذه السورة */
+  const [sync, setSync] = useState<'unknown' | 'measuring' | 'measured' | 'estimated'>('unknown');
+  const measureRef = useRef<AbortController | null>(null);
+
+  /**
+   * جدول أزمنة الآيات. يُعاد بناؤه عند تغيّر السورة أو القارئ.
+   * لا نبنيه في كل رسم — القياس عملية شبكة لا عملية رسم.
+   */
+  const timings = useRef<ReturnType<typeof boundariesFor> | null>(null);
 
   const stop = useCallback(() => {
     const a = audioRef.current;
@@ -329,6 +353,8 @@ export default function SurahReader() {
     playList.current = [];
     setPlaying(null);
     setCurrent(null);
+    setMediaPlayback('none');
+    wake.release();
   }, []);
 
   const start = useCallback(
@@ -341,7 +367,10 @@ export default function SurahReader() {
       setPlaying(id);
       setCurrent(list[0] ? keyOf(list[0]) : null);
       a.play()
-        .then(() => undefined)
+        .then(() => {
+          setMediaPlayback('playing');
+          void wake.hold();
+        })
         .catch(() => {
           setPlaying(null);
           setCurrent(null);
@@ -350,6 +379,28 @@ export default function SurahReader() {
     },
     [msg],
   );
+
+  /**
+   * قياس مدد الآيات مرة واحدة عند أول تلاوة لهذه السورة.
+   * بلا هذا التقدّم تظهر الآية الجارية متأخرة دقائق.
+   * الفشل ليس خطأً ظاهراً: نبقى على التقدير المتساوي ونعلنه.
+   */
+  const ensureTiming = useCallback(() => {
+    if (playing !== 'all' || !surah || !ayahs.length) return;
+    const known = cachedTiming(reciter, surah.n);
+    if (known && known.length === ayahs.length) {
+      setSync('measured');
+      return;
+    }
+    measureRef.current?.abort();
+    const ctl = new AbortController();
+    measureRef.current = ctl;
+    setSync('measuring');
+    void measureTiming(reciter, ayahs, surah.n, undefined, ctl.signal).then((t) => {
+      if (ctl.signal.aborted) return;
+      setSync(t ? 'measured' : 'estimated');
+    });
+  }, [playing, reciter, surah, ayahs]);
 
   const toggleWhole = () => {
     if (playing === 'all') {
@@ -370,6 +421,22 @@ export default function SurahReader() {
     start(ayahAudioUrl(reciter, ay.globalIndex), [ay], keyOf(ay));
   };
 
+  /**
+   * القفز إلى آية بعينها أثناء تلاوة السورة.
+   * نضبط زمن التشغيل على بداية تلك الآية في الجدول، فيسمعها من أولها.
+   */
+  const seekToAyah = useCallback((ay: AyahView) => {
+    const a = audioRef.current;
+    const list = playList.current;
+    if (!a || playing !== 'all' || !list.length) return;
+    const b = timings.current;
+    if (!b) return;
+    const i = list.findIndex((x) => x.s === ay.s && x.a === ay.a);
+    if (i < 0) return;
+    a.currentTime = b.starts[i] + 0.05;
+    setCurrent(keyOf(ay));
+  }, [playing]);
+
   /** تنزيل تلاوة السورة كاملة لتعمل بلا إنترنت */
   const saveAudio = async () => {
     if (range !== 'surah' || !surah) return;
@@ -385,8 +452,8 @@ export default function SurahReader() {
   };
 
   /**
-   * الآية الجارية: تقسيم زمني متساوٍ — المدة ÷ عدد الآيات.
-   * ينطبق على تلاوة السورة كلها وعلى تلاوة الآية المفردة بالطريقة نفسها.
+   * الآية الجارية من الجدول المُقاس، لا من القسمة المتساوية.
+   * القسمة كانت تُظهر الآية متأخرة لأن الآيات أطوالها مختلفة أشدّ.
    */
   const onTime = () => {
     const a = audioRef.current;
@@ -394,11 +461,80 @@ export default function SurahReader() {
     if (!a || list.length === 0) return;
     const d = a.duration;
     if (!d || !Number.isFinite(d)) return;
-    const i = Math.min(list.length - 1, Math.max(0, Math.floor((a.currentTime / d) * list.length)));
-    const ay = list[i];
+
+    const b =
+      timings.current ??
+      boundariesFor(reciter, surah?.n ?? 1, list.length, d);
+    timings.current = b;
+
+    const ay = list[ayahAt(b, a.currentTime)];
     if (!ay) return;
     setCurrent((prev) => (prev === keyOf(ay) ? prev : keyOf(ay)));
   };
+
+  useEffect(() => {
+    ensureTiming();
+  }, [ensureTiming]);
+
+  /* ---------- التحكّم من خارج التطبيق ---------- */
+
+  /**
+   * أزرار الإشعار وشاشة القفل. تُسجَّل مرّة واحدة وتقرأ الحالة الحيّة
+   * من `useSettings.getState()`، فلا تختفي عند إعادة رسم الصفحة.
+   */
+  useEffect(() => {
+    const jump = (delta: number) => {
+      const a = audioRef.current;
+      if (!a) return;
+      a.currentTime = Math.max(0, Math.min(a.duration || 0, a.currentTime + delta));
+    };
+    registerMediaHandlers({
+      play: () => { void audioRef.current?.play().catch(() => undefined); },
+      pause: () => audioRef.current?.pause(),
+      stop: () => stop(),
+      prev: () => jump(-10),
+      next: () => jump(10),
+      backward: (s) => jump(-(s ?? 10)),
+      forward: (s) => jump(s ?? 10),
+      seekTo: (time) => {
+        const a = audioRef.current;
+        if (a && Number.isFinite(time)) a.currentTime = time;
+      },
+    });
+    return () => clearMediaHandlers();
+  }, [stop]);
+
+  /**
+   * تحديث عنوان الإشعار. يظهر اسم السورة والآية الجارية، فيعرف
+   * المستخدم من الإشعار أين وصل بلا أن يفتح التطبيق.
+   */
+  useEffect(() => {
+    if (!playing) {
+      setMediaMetadata({ title: appName, artist: L(reciterName), album: t('appName') });
+      return;
+    }
+    const list = playList.current;
+    const ay = current ? list.find((x) => keyOf(x) === current) : list[0];
+    const where = surah
+      ? `${surah.ar} — ${L({ ar: 'الآية', en: 'Ayah' })} ${ay?.a ?? 1}`
+      : t('appName');
+    setMediaMetadata({
+      title: where,
+      artist: L(reciterName),
+      album: t('appName'),
+      artwork: [{ src: iconUrl, sizes: '192x192', type: 'image/png' }],
+    });
+  }, [playing, current, surah, reciterName, L, t, appName, iconUrl]);
+
+  /** المتصفح يُحرّر قفل الشاشة عند إخفاء الصفحة — نُجدّده عند العودة */
+  useEffect(() => {
+    const onVis = () => wake.syncVisibility();
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
+
+  /** إيقاف القياس عند مغادرة السورة */
+  useEffect(() => () => measureRef.current?.abort(), []);
 
   useEffect(() => {
     stop();
@@ -630,6 +766,35 @@ export default function SurahReader() {
             </button>
           ) : null}
 
+          {/*
+            حالة المزامنة: نُعلنها صراحةً. «تقديري» يعني أن الآية
+            الجارية قد تتأخر قليلاً، ولا ندّعي دقةً ليست عندنا.
+          */}
+          {playing === 'all' ? (
+            <span
+              className={`text-[11px] ${
+                sync === 'estimated' ? 'text-amber-400' : 'text-slate-500'
+              }`}
+            >
+              {sync === 'measuring'
+                ? L({ ar: 'تُقاس مواضع الآيات…', en: 'Measuring ayah timings…' })
+                : sync === 'estimated'
+                  ? L({ ar: 'الموضع تقديري', en: 'Position is approximate' })
+                  : sync === 'unknown'
+                    ? ''
+                    : L({ ar: 'الموضع دقيق', en: 'Position is exact' })}
+            </span>
+          ) : null}
+
+          {mediaSessionSupported() ? (
+            <span className="text-[11px] text-slate-600">
+              {L({
+                ar: 'أزرار التحكّم في الإشعار',
+                en: 'Controls available in the notification',
+              })}
+            </span>
+          ) : null}
+
           {range === 'surah' && surah && !hasSurahAudio(reciter) ? (
             <span className="text-[11px] text-slate-500">
               {L({
@@ -692,8 +857,14 @@ export default function SurahReader() {
                 <div className="flex items-start gap-3">
                   <button
                     type="button"
-                    onClick={() => toggleAyah(ay)}
-                    aria-label={playing === k ? t('stopRecitation') : t('playRecitation')}
+                    onClick={() => (playing === 'all' ? seekToAyah(ay) : toggleAyah(ay))}
+                    aria-label={
+                      playing === 'all'
+                        ? L({ ar: 'انتقل إلى هذه الآية', en: 'Jump to this ayah' })
+                        : playing === k
+                          ? t('stopRecitation')
+                          : t('playRecitation')
+                    }
                     className={`num grid h-8 w-8 shrink-0 place-items-center rounded-full border text-xs font-bold transition-colors active:scale-[.97] ${
                       active
                         ? 'border-gold-300 bg-gold-400 text-ink-900'
