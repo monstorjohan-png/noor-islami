@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSettings } from './store';
+import { applyPalette } from './theme';
 import { t } from '../i18n';
 
 /** اللغة الحالية + دالة ترجمة، تُعيد الانتقال عند تغيّر اللغة */
@@ -39,12 +40,15 @@ export function useS() {
 export function useTheme() {
   const theme = useSettings((s) => s.theme);
   const lang = useSettings((s) => s.lang);
+  const palette = useSettings((s) => s.palette);
   useEffect(() => {
     const el = document.documentElement;
     el.classList.toggle('dark', theme === 'dark');
     el.lang = lang;
     el.dir = lang === 'ar' ? 'rtl' : 'ltr';
-  }, [theme, lang]);
+    // اللوحة سمة على الجذر، فنفس الـ effect بلا حاجة لتأخير
+    applyPalette(palette);
+  }, [theme, lang, palette]);
 }
 
 /** مؤقّت يعيد التصيير كل مللي ثانية */

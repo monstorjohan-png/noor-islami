@@ -17,6 +17,7 @@ const Prayer = lazy(() => import('./pages/Prayer'));
 const Qibla = lazy(() => import('./pages/Qibla'));
 const Tasbih = lazy(() => import('./pages/Tasbih'));
 const Adhkar = lazy(() => import('./pages/Adhkar'));
+const Hifz = lazy(() => import('./pages/Hifz'));
 const Names = lazy(() => import('./pages/Names'));
 const Calendar = lazy(() => import('./pages/Calendar'));
 const Search = lazy(() => import('./pages/Search'));
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="qibla" element={<Qibla />} />
           <Route path="tasbih" element={<Tasbih />} />
           <Route path="adhkar" element={<Adhkar />} />
+          <Route path="hifz" element={<Hifz />} />
           <Route path="names" element={<Names />} />
           <Route path="calendar" element={<Calendar />} />
           <Route path="search" element={<Search />} />

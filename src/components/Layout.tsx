@@ -1,13 +1,24 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useEffect, useRef } from 'react';
 import { useSettings } from '../lib/store';
-import { useOnline, useT, useTheme } from '../lib/hooks';
+import { useL, useOnline, useT, useTheme } from '../lib/hooks';
 import { AdhkarIcon, HomeIcon, MoreIcon, PrayerIcon, QuranIcon } from './icons';
 import SearchBar from './SearchBar';
 
-const MAIN_NAV: Array<{ to: string; key: string; Icon: (p: { className?: string }) => JSX.Element; end?: boolean }> = [
+/**
+ * عنصر القائمة: `key` من القاموس المشترك، أو `label` ثنائي اللغة حين لا
+ * يكون للصفحة مفتاح فيه — فالمفتاح يضاف من مالك القاموس لا من هنا.
+ */
+const MAIN_NAV: Array<{
+  to: string;
+  key: string;
+  label?: { ar: string; en: string };
+  Icon: (p: { className?: string }) => JSX.Element;
+  end?: boolean;
+}> = [
   { to: '/', key: 'home', Icon: HomeIcon, end: true },
   { to: '/quran', key: 'quran', Icon: QuranIcon },
+  { to: '/hifz', key: 'hifz', label: { ar: 'الحفظ', en: 'Hifz' }, Icon: QuranIcon },
   { to: '/prayer', key: 'prayer', Icon: PrayerIcon },
   { to: '/adhkar', key: 'adhkar', Icon: AdhkarIcon },
   { to: '/more', key: 'more', Icon: MoreIcon },
@@ -15,6 +26,7 @@ const MAIN_NAV: Array<{ to: string; key: string; Icon: (p: { className?: string 
 
 export default function Layout() {
   const t = useT();
+  const L = useL();
   useTheme();
   const online = useOnline();
   const setLang = useSettings((s) => s.set);
@@ -82,7 +94,7 @@ export default function Layout() {
 
       <nav className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-white/5 bg-ink-900/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-3xl items-stretch justify-around px-2 pt-1.5 pb-[max(.35rem,var(--safe-b))]">
-          {MAIN_NAV.map(({ to, key, Icon, end }) => (
+          {MAIN_NAV.map(({ to, key, label, Icon, end }) => (
             <NavLink
               key={key}
               to={to}
@@ -94,7 +106,7 @@ export default function Layout() {
               }
             >
               <Icon className="h-6 w-6" />
-              <span className="max-w-full truncate">{t(key)}</span>
+              <span className="max-w-full truncate">{label ? L(label) : t(key)}</span>
             </NavLink>
           ))}
         </div>

@@ -16,6 +16,7 @@ import {
 const REMINDER_HOUR = 5;
 const REMINDER_MINUTE = 30;
 import { Card, Row, Section, Toggle } from '../components/ui';
+import { PALETTES } from '../lib/theme';
 import type { Madhab } from '../lib/store';
 
 const FONT_STEPS = [20, 24, 28, 32, 38, 44, 52];
@@ -70,8 +71,41 @@ export default function Settings() {
     <div className="animate-fade-in">
       <Section title={t('settings')} />
 
-      {/* المظهر واللغة */}
+      {/* المظهر واللغة — وأوّلها لوحة الألوان، وعيناتها ترسم نفسها
+          بلون لوحتها عبر data-palette فلا تتكرّر الألوان في البرمجة */}
       <Card className="mb-4">
+        <div className="border-b border-white/5 pb-3 pt-1">
+          <div className="grid grid-cols-3 gap-2">
+            {PALETTES.map((p) => {
+              const on = s.palette === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => s.set('palette', p.id)}
+                  aria-pressed={on}
+                  aria-label={L({ ar: `لوحة ${p.ar}`, en: `${p.en} palette` })}
+                  className={`flex flex-col items-center gap-1.5 rounded-xl border p-2 text-xs transition-all ${
+                    on ? 'border-gold-400 bg-gold-400/10' : 'border-white/10 hover:bg-white/5'
+                  }`}
+                >
+                  <span data-palette={p.id} className="flex w-full items-center gap-1 rounded-lg bg-ink-900 p-1.5">
+                    <span className="h-4 w-4 rounded bg-gold-400" />
+                    <span className="h-4 w-4 rounded bg-emerald-500" />
+                    <span className="h-4 flex-1 rounded bg-white/10" />
+                  </span>
+                  <span className="flex items-center gap-1 text-slate-200">
+                    {on ? <span aria-hidden className="text-gold-400">✓</span> : null}
+                    {L(p)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            {L(PALETTES.find((p) => p.id === s.palette)?.desc)}
+          </p>
+        </div>
         <Row label={t('language')}>
           <select
             value={s.lang}

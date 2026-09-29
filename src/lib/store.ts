@@ -3,6 +3,8 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { RECITERS, DEFAULT_RECITER_ID } from './audio';
 import type { ReciterId } from './audio';
 import { clamp, isSafeKey, stripDangerKeys } from './safe';
+import { applyPalette, DEFAULT_PALETTE, isPalette } from './theme';
+import type { PaletteId } from './theme';
 import type { Lang } from './types';
 
 export type Madhab = 'shafii' | 'hanafi' | 'maliki' | 'hanbali';
@@ -30,6 +32,8 @@ export interface ReadingState {
 interface SettingsState {
   lang: Lang;
   theme: Theme;
+  /** لوحة الألوان — تُطبَّق سمةً على الجذر، ومعرّفاتها في lib/theme */
+  palette: PaletteId;
   madhab: Madhab;
   calcMethod: string;
   location: { lat: number; lon: number; label: string } | null;
@@ -139,6 +143,7 @@ function sanitizeHydration(persisted: unknown, current: SettingsState): Settings
     ...current,
     lang: p.lang === 'en' ? 'en' : 'ar',
     theme: pick(p.theme, THEMES, current.theme),
+    palette: isPalette(p.palette) ? p.palette : DEFAULT_PALETTE,
     madhab: pick(p.madhab, MADHABS, current.madhab),
     calcMethod: typeof p.calcMethod === 'string' && p.calcMethod.length <= 32 ? p.calcMethod : current.calcMethod,
     location: pickLocation(p.location),
@@ -160,6 +165,7 @@ function sanitizeHydration(persisted: unknown, current: SettingsState): Settings
 const DEFAULTS = {
   lang: 'ar',
   theme: 'dark',
+  palette: DEFAULT_PALETTE,
   madhab: 'shafii',
   calcMethod: 'MuslimWorldLeague',
   location: null,
@@ -261,6 +267,7 @@ export const useSettings = create<SettingsState>()(
       partialize: (s) => ({
         lang: s.lang,
         theme: s.theme,
+        palette: s.palette,
         madhab: s.madhab,
         calcMethod: s.calcMethod,
         location: s.location,
@@ -290,3 +297,10 @@ export const useSettings = create<SettingsState>()(
     },
   ),
 );
+
+/**
+ * اللوحة تُثبَّت هنا لا في `useTheme` وحده: التخزين المحلي يُقرأ متزامناً
+ * أثناء الإنشاء، فوضعُ السمة الآن يمنع إطاراً واحداً من paint باللوحة
+ * الأولى قبل أن يعمل الخطّاف. ثم يبقى الخطّاف مالكاً كل تغيير بعده.
+ */
+applyPalette(useSettings.getState().palette);

@@ -5,7 +5,8 @@ import { useAsync, useL, useT, useTick } from '../lib/hooks';
 import { getAyah, getSurahs } from '../lib/content';
 import { computeTimes, nextPrayer, PRAYERS, formatRemaining, qiblaBearing, distanceToKaaba } from '../lib/prayer';
 import { toHijri, formatHijri, formatGregorian } from '../lib/hijri';
-import { Badge, Card, Ornament, Section } from '../components/ui';
+import { dueForReview, loadHifz, memorizedCount, todayIndex } from '../lib/hifz';
+import { Badge, Card, Ornament, ProgressBar, Section } from '../components/ui';
 import { AdhkarIcon, HadithIcon, NamesIcon, QuranIcon, TasbihIcon, CalendarIcon, PrayerIcon } from '../components/icons';
 
 /** آية اليوم: موضع ثابت يتغيّر بتغيّر اليوم — يُقرَّر من المصدر لا من الذاكرة */
@@ -68,6 +69,22 @@ export default function Home() {
   const adhkarDone = Object.entries(adhkarProgress)
     .filter(([k, v]) => k !== '__day' && typeof v === 'number')
     .length;
+
+  /**
+   * متابعة الحفظ تُقرأ من تخزينها الخاص: حالة مستقلة عن الإعدادات،
+   * فلا تُشتقّ من حالة التطبيق ولا تُكتب في أول رسم.
+   */
+  const hifz = useMemo(() => {
+    const s = loadHifz();
+    return {
+      memorized: s.entries.reduce((a, e) => a + memorizedCount(e), 0),
+      due: dueForReview(s, todayIndex(), 20).length,
+    };
+  }, []);
+
+  const quranAyahs = surahs.data?.reduce((a, s) => a + s.verses, 0) ?? 0;
+  const hifzKnown = quranAyahs > 0;
+  const hifzPct = hifzKnown ? (hifz.memorized / quranAyahs) * 100 : 0;
 
   return (
     <div className="animate-fade-in">
@@ -148,6 +165,57 @@ export default function Home() {
               </div>
               <span className="shrink-0 text-slate-600">‹</span>
             </div>
+          </Card>
+        </Link>
+      </Section>
+
+      {/* متابعة الحفظ */}
+      <Section title={L({ ar: 'متابعة الحفظ', en: 'Memorization' })}>
+        <Link to="/hifz" className="block">
+          <Card>
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gold-400/10 text-gold-300">
+                <QuranIcon className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-slate-100">
+                  {hifz.memorized > 0
+                    ? L({ ar: 'متابعة حفظك اليوم', en: 'Continue memorizing' })
+                    : L({ ar: 'ابدأ تتبّع حفظك', en: 'Start tracking' })}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {hifz.memorized > 0 ? (
+                    <>
+                      <span className="num">{hifz.memorized}</span>
+                      <span> {L({ ar: 'آية محفوظة', en: 'verses memorized' })}</span>
+                    </>
+                  ) : (
+                    L({ ar: 'اضغط لتسجيل ما حفظته', en: 'Tap to record what you memorized' })
+                  )}
+                </p>
+              </div>
+              <span className="shrink-0 text-slate-600">‹</span>
+            </div>
+
+            {hifz.memorized > 0 ? (
+              <>
+                <div className="mt-3">
+                  <ProgressBar value={hifzPct} />
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Badge tone="gold">
+                    {L({ ar: 'من الختمة', en: 'of the run' })}{' '}
+                    <span className="num">{hifzKnown ? `${Math.round(hifzPct)}٪` : '—'}</span>
+                  </Badge>
+                  {hifz.due > 0 ? (
+                    <Badge tone="green">
+                      {L({ ar: 'مراجعة', en: 'Review' })}{' '}
+                      <span className="num">{hifz.due}</span>
+                    </Badge>
+                  ) : null}
+                </div>
+              </>
+            ) : null}
           </Card>
         </Link>
       </Section>
