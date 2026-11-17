@@ -10,7 +10,10 @@
 
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { QuranIcon } from '../components/icons';
+import KhatmaMap from '../components/KhatmaMap';
 import { getAyah, getSurahs } from '../lib/content';
+import { loadTasmee3 } from '../lib/tasmee3';
 import { useAsync, useL, useT } from '../lib/hooks';
 import {
   DAILY_MAX,
@@ -77,7 +80,7 @@ export default function Hifz() {
   const [boot] = useState(() => {
     const s = loadHifz();
     const d = todayIndex();
-    const all = dueForReview(s, d, REVIEW_MAX);
+    const all = dueForReview(s, d, REVIEW_MAX, loadTasmee3());
     return { s, d, all, due: all.slice(0, DAILY_REVIEW) };
   });
   const [state, setState] = useState<HifzState>(boot.s);
@@ -264,6 +267,29 @@ export default function Hifz() {
           />
         </div>
       </header>
+
+      {/* التسميع التفاعلي — جلسة استذكار في صفحة مستقلة */}
+      <Link to="/tasmee3" className="mb-6 block">
+        <Card className="border-gold-400/25 bg-gradient-to-br from-gold-400/10 to-transparent transition-colors hover:border-gold-400/40">
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gold-400/15 text-gold-300">
+              <QuranIcon className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-bold text-slate-100">{L({ ar: 'جلسة تسميع تفاعلية', en: 'Interactive recitation' })}</span>
+              <span className="mt-0.5 block text-[11px] leading-4 text-slate-500">
+                {L({ ar: 'اكشف الآية · الكلمة الناقصة · رتّب الآيات · سجّل صوتك', en: 'Reveal · missing word · order ayahs · record' })}
+              </span>
+            </span>
+            <span className="shrink-0 text-gold-400">‹</span>
+          </div>
+        </Card>
+      </Link>
+
+      {/* خريطة الختمة — 604 صفحات بصرياً، تُنقر للانتقال */}
+      <Section title={L({ ar: 'خريطة الختمة', en: 'Khatma map' })}>
+        <KhatmaMap entries={state.entries} />
+      </Section>
 
       {/* الخطة: تعديل الهدف، وإعادة الضبط، وبدء ختمة */}
       <Section title={L({ ar: 'الخطة', en: 'Plan' })}>

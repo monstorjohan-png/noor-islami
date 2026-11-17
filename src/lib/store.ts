@@ -10,6 +10,26 @@ import type { Lang } from './types';
 export type Madhab = 'shafii' | 'hanafi' | 'maliki' | 'hanbali';
 export type Theme = 'dark' | 'light';
 
+/** هدف المستخدم من القرآن — يُحدَّد في الجولة الافتتاحية ويمكن تعديله لاحقاً */
+export type GoalType =
+  | 'khatma'      // ختم المصحف خلال مدة
+  | 'hifzJuz'     // حفظ جزء عم
+  | 'hifzSurahs'  // حفظ سور محددة
+  | 'tajweed'     // ختم + تأسيس التجويد
+  | 'tadabbur'    // فهم التلاوة وتدبرها
+  | 'browse';     // تصفح بلا التزام
+
+export interface QuranGoal {
+  type: GoalType;
+  /** أيام الختمة: 30 / 60 / 90 — للختمة فقط، وإلا null */
+  khatmaDays: 30 | 60 | 90 | null;
+  /** الآيات المستهدفة يومياً (من 1 إلى 50) */
+  dailyTarget: number;
+  /** الاسم الذي يُخاطب به المستخدم — فارغ إن لم يكتبه */
+  name: string;
+  createdAt: number;
+}
+
 export interface Bookmark {
   id: string;
   kind: 'ayah' | 'hadith' | 'surah' | 'page';
@@ -48,8 +68,12 @@ interface SettingsState {
   bookmarks: Bookmark[];
   adhkarProgress: Record<string, number>;
   onboarded: boolean;
+  /** هدف المستخدم من القرآن — null حتى يختاره في الجولة الافتتاحية */
+  goal: QuranGoal | null;
 
   set: <K extends keyof SettingsState>(k: K, v: SettingsState[K]) => void;
+  /** ضبط الهدف (أو مسحه بـ null) — يعيد بناء الحقول قبل الكتابة */
+  setGoal: (goal: QuranGoal | null) => void;
   toggleBookmark: (b: Omit<Bookmark, 'at' | 'id'> & { id?: string }) => void;
   isBookmarked: (kind: Bookmark['kind'], ref: string) => boolean;
   bumpTasbih: (key: string, target: number) => { done: boolean; total: number };
@@ -75,6 +99,28 @@ function pickBool(v: unknown, fallback: boolean): boolean {
 function pickNum(v: unknown, min: number, max: number, fallback: number): number {
   const n = typeof v === 'number' ? v : NaN;
   return Number.isFinite(n) ? clamp(n, min, max) : fallback;
+}
+
+/** مصدَّرة لـ `lib/backup` كي تمرّ نسخة مستوردة من الجهاز الآخر من نفس المسار */
+export function pickGoal(v: unknown): QuranGoal | null {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  const type = pick(
+    o.type,
+    new Set(['khatma', 'hifzJuz', 'hifzSurahs', 'tajweed', 'tadabbur', 'browse']),
+    '',
+  );
+  if (!type) return null;
+  const kd = o.khatmaDays;
+  const khatmaDays = kd === 30 || kd === 60 || kd === 90 ? kd : null;
+  const name = typeof o.name === 'string' ? o.name.trim().slice(0, 40) : '';
+  return {
+    type: type as GoalType,
+    khatmaDays,
+    dailyTarget: pickNum(o.dailyTarget, 1, 50, 5),
+    name,
+    createdAt: pickNum(o.createdAt, 0, 4e12, Date.now()),
+  };
 }
 
 /**
@@ -156,6 +202,7 @@ function sanitizeHydration(persisted: unknown, current: SettingsState): Settings
     bookmarks: pickBookmarks(p.bookmarks),
     adhkarProgress: stripDangerKeys<number>(p.adhkarProgress),
     onboarded: pickBool(p.onboarded, false),
+    goal: pickGoal(p.goal),
   };
 }
 
@@ -173,6 +220,7 @@ const DEFAULTS = {
   dailyReminders: true,
   reciter: DEFAULT_RECITER_ID,
   onboarded: false,
+  goal: null,
   tasbihCounts: {},
   tasbihTotal: 0,
   bookmarks: [],
@@ -194,7 +242,8 @@ type Actions =
   | 'bumpTasbih'
   | 'resetTasbih'
   | 'setAdhkarProgress'
-  | 'completeOnboarding';
+  | 'completeOnboarding'
+  | 'setGoal';
 
 function useSettingsDefaults(): SettingsState {
   return { ...DEFAULTS, ...emptyActions() } as SettingsState;
@@ -209,6 +258,7 @@ function emptyActions() {
     resetTasbih: () => undefined,
     setAdhkarProgress: () => undefined,
     completeOnboarding: () => undefined,
+    setGoal: () => undefined,
   };
 }
 
@@ -256,6 +306,9 @@ export const useSettings = create<SettingsState>()(
         }),
 
       completeOnboarding: () => set({ onboarded: true }),
+
+      /** الكتابة تمر بإعادة البناء — لا يُوثَق بالكائن كما وصل من أي مصدر */
+      setGoal: (goal) => set({ goal: pickGoal(goal) }),
     }),
     {
       name: 'noor-settings',
@@ -279,6 +332,7 @@ export const useSettings = create<SettingsState>()(
         bookmarks: s.bookmarks,
         adhkarProgress: s.adhkarProgress,
         onboarded: s.onboarded,
+        goal: s.goal,
       }) as never,
       /**
        * لا يُعتمد ما يصل من التخزين كما هو: التخزين المحلي قابل للتحرير

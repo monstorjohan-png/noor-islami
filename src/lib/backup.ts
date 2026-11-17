@@ -22,7 +22,7 @@
  * لا نصّ ديني في هذا الملف: كل نصّ يأتي من خطّ الأنابيب.
  */
 
-import { useSettings } from './store';
+import { useSettings, pickGoal } from './store';
 import type { Bookmark } from './store';
 import { HIFZ_KEY, loadHifz, sanitizeHifz, saveHifz } from './hifz';
 import type { HifzEntry, HifzState } from './hifz';
@@ -454,6 +454,15 @@ export async function applyBackup(data: BackupFile): Promise<ApplyResult> {
     if (s.onboarded === false && incoming['onboarded'] === true) {
       patch.onboarded = true;
       applied.push('onboarded');
+    }
+
+    // الهدف: يُستعاد فقط إن لم يكن لهذا الجهاز هدف — المحلي يبقى مقدماً دائماً
+    if (s.goal === null) {
+      const g = pickGoal(incoming['goal']);
+      if (g) {
+        patch.goal = g;
+        applied.push('goal');
+      }
     }
 
     // موضع القراءة: يُستعاد على بدايته فقط، فما local عليه شيء يُمحى

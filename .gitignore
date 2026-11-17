@@ -32,3 +32,6 @@ logs/
 # --- مخرجات الفحص ---
 .cache/
 coverage/
+
+.hf/
+.cache-whisper-test*.mjs

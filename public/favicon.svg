@@ -1,18 +1,37 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
-    <radialGradient id="g" cx="50%" cy="45%" r="60%">
-      <stop offset="0%" stop-color="#243352"/>
-      <stop offset="100%" stop-color="#0b1220"/>
-    </radialGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#143F2E"/>
+      <stop offset="0.55" stop-color="#0D2C21"/>
+      <stop offset="1" stop-color="#061C14"/>
+    </linearGradient>
     <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#f3dfa8"/>
-      <stop offset="100%" stop-color="#c9992f"/>
+      <stop offset="0" stop-color="#F8E9B4"/>
+      <stop offset="0.5" stop-color="#E9CD8F"/>
+      <stop offset="1" stop-color="#B98A2F"/>
     </linearGradient>
   </defs>
-  <circle cx="32" cy="32" r="31" fill="url(#g)"/>
-  <circle cx="32" cy="32" r="30.2" fill="none" stroke="#c9992f" stroke-width="1.6"/>
-  <circle cx="32" cy="50" r="22.5" fill="none" stroke="#17a37f" stroke-width="1.2" opacity=".8"/>
-  <circle cx="32" cy="17" r="4.2" fill="url(#gold)"/>
-  <path d="M14 24 L14 32 A18 12 0 0 0 50 32 L50 24"
-        fill="none" stroke="url(#gold)" stroke-width="5.2" stroke-linecap="round"/>
+
+  <rect x="1" y="1" width="98" height="98" rx="23" fill="url(#bg)"/>
+  <circle cx="50" cy="50" r="40.5" fill="none" stroke="#E9CD8F" stroke-width="1.7"/>
+  <circle cx="50" cy="50" r="37" fill="none" stroke="#D0B270" stroke-width="0.8" opacity="0.85"/>
+
+  <!-- قوس الهلال أعلى «ن» -->
+  <path d="M33 31.5 Q50 16 67 31.5" fill="none" stroke="url(#gold)" stroke-width="3.6" stroke-linecap="round"/>
+
+  <!-- «ن»: قوس الحرف مع مجراه -->
+  <path d="M30 58.5 C30 71.5 43.5 75.5 55.5 69.5 C63.5 65 65.5 50 65.5 43"
+        fill="none" stroke="url(#gold)" stroke-width="6.2" stroke-linecap="round"/>
+  <!-- نقطة «ن» -->
+  <polygon points="46.2,27.5 51.6,32.9 46.2,38.3 40.8,32.9" fill="#F8E9B4" stroke="#B98A2F" stroke-width="0.7" stroke-linejoin="round"/>
+
+  <!-- نجمة ثمانية أعلى القوس -->
+  <g stroke="#E9CD8F" stroke-width="1.05" fill="none" stroke-linejoin="round">
+    <rect x="46.4" y="8.6" width="7.2" height="7.2" transform="rotate(45 50 12.2)"/>
+    <rect x="46.4" y="8.6" width="7.2" height="7.2"/>
+  </g>
+
+  <!-- وميضان جانبيان -->
+  <polygon points="20,55.4 21.7,52.3 23.4,55.4 26.5,58 23.4,60.6 21.7,63.7 19.9,60.6 17,58" fill="#E9CD8F" opacity="0.9"/>
+  <polygon points="80,55.4 81.7,52.3 83.4,55.4 86.5,58 83.4,60.6 81.7,63.7 79.9,60.6 77,58" fill="#E9CD8F" opacity="0.9"/>
 </svg>

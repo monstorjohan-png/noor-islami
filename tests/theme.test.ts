@@ -138,7 +138,7 @@ const SECONDARY: Array<[string, (v: PaletteVars) => string, (v: PaletteVars) => 
 describe('حارس معرّفات اللوحات', () => {
   it('يقبل اللوحات الخمس المعلنة', () => {
     for (const p of PALETTES) expect(isPalette(p.id)).toBe(true);
-    expect(PALETTE_IDS.size).toBe(5);
+    expect(PALETTE_IDS.size).toBe(6);
   });
 
   it('يرفض ما ليس لوحةً', () => {
@@ -332,7 +332,8 @@ describe('تباين النصّ في كل لوحة', () => {
       }
       // والأبيض فوق الأخضر يبقى أبيضاً في هذه اللوحة وحدها
       expect(CSS).toMatch(/\[data-palette='sand'\]\s+\.bg-emerald-500\.text-white[\s\S]*?color:\s*#fff/);
-      expect(CSS.match(/color:\s*#fff/g) ?? []).toHaveLength(1);
+      // الرملي ووضع الطفل يشاركان القاعدة نفسها — فلكلٍّ منها «color: #fff» واحد
+      expect(CSS.match(/color:\s*#fff/g) ?? []).toHaveLength(2);
     });
   }
 

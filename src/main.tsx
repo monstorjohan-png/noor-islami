@@ -12,7 +12,12 @@ import './styles/index.css';
  * الاستضافة على الجذر تعطي `/`، والاستضافة في مجلد فرعي تعطي مسار المجلد.
  * بلا تثبيته تظهر ٤٠٤ على كل رابط داخلي.
  */
-const BASENAME = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/';
+/**
+ * basename مناسب للخاصيتين: `/` (الافتراضي وCapacitor) و`/noor-islami/` (GitHub Pages).
+ * `./` (PAGES_BASE نسبي) يُعامل كجذر — وإلا كسّرت React-Router التصيير كله.
+ */
+const RAW_BASE = (import.meta.env.BASE_URL ?? '/').replace(/\/+$/, '');
+const BASENAME = RAW_BASE === '' || RAW_BASE === '.' ? '/' : RAW_BASE;
 
 /**
  * مزامنة البيانات قبل أول رسم.

@@ -33,7 +33,9 @@ export default defineConfig({
        * فيخلط `index.html` من نسخة بالحِزم من نسخة أخرى. النتيجة شاشة
        * بيضاء. مع `prompt` يُخبر المستخدم أن هناك نسخة جديدة ويختار.
        */
-      registerType: 'prompt',
+      // لا يعتمد التطبيق على نقرة «تحديث الآن» كي يحدّث نفسه — يُحدّث تلقائياً
+  // عند كل فتح وإقفال التبويب، فلا يبقى المستخدم على نسخة معطوبة أبداً.
+  registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
         id: '/',
@@ -46,8 +48,8 @@ export default defineConfig({
         scope: '/',
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#0b1220',
-        theme_color: '#0b1220',
+        background_color: '#081F16',
+        theme_color: '#081F16',
         categories: ['education', 'books', 'lifestyle'],
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
@@ -61,6 +63,10 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // التفعيل الفوري: لا يبقى المستخدم على نسخة قديمة معطوبة أبداً
+        // (كان يعتمد على نقرة «تحديث الآن» — أي اصطياد المستخدم بنسخة مكسورة)
+        skipWaiting: true,
+        clientsClaim: true,
         // .ttf مضاف: خط المصحف يجب أن يكون في الذاكرة أو لن يظهر الرسم العثماني
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,ttf}'],
         // المحتوى: لا يُخزَّن مسبقاً كله — يُجلب عند الطلب ويُحفظ في IndexedDB

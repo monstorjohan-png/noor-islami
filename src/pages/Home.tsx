@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useSettings } from '../lib/store';
 import { useAsync, useL, useT, useTick } from '../lib/hooks';
@@ -6,6 +6,8 @@ import { getAyah, getSurahs } from '../lib/content';
 import { computeTimes, nextPrayer, PRAYERS, formatRemaining, qiblaBearing, distanceToKaaba } from '../lib/prayer';
 import { toHijri, formatHijri, formatGregorian } from '../lib/hijri';
 import { dueForReview, loadHifz, memorizedCount, todayIndex } from '../lib/hifz';
+import { loadTasmee3 } from '../lib/tasmee3';
+import { notifyNow } from '../lib/notifications';
 import { Badge, Card, Ornament, ProgressBar, Section } from '../components/ui';
 import { AdhkarIcon, HadithIcon, NamesIcon, QuranIcon, TasbihIcon, CalendarIcon, PrayerIcon } from '../components/icons';
 
@@ -33,6 +35,43 @@ export default function Home() {
   const lastSurah = useSettings((s) => s.reading.lastSurah);
   const lastAyah = useSettings((s) => s.reading.lastAyah);
   const adhkarProgress = useSettings((s) => s.adhkarProgress);
+  const goal = useSettings((s) => s.goal);
+  const notifications = useSettings((s) => s.notifications);
+  const dailyReminders = useSettings((s) => s.dailyReminders);
+
+  /** وردك بعد كل صلاة — جدولة مستقلة تماماً عن تنبيهات الأذان */
+  const wirdTimers = useRef<number[]>([]);
+  useEffect(() => {
+    wirdTimers.current.forEach((id) => window.clearTimeout(id));
+    wirdTimers.current = [];
+    if (!notifications || !dailyReminders || !location) return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    const todayLocal = new Date();
+    const times = computeTimes(todayLocal, location.lat, location.lon, calcMethod, madhab);
+    const offsets: Array<[string, number, string]> = [
+      ['fajr', 15, 'ورد الفجر'],
+      ['dhuhr', 10, 'ورد الظهر'],
+      ['asr', 10, 'ورد العصر'],
+      ['maghrib', 10, 'ورد المغرب'],
+      ['isha', 15, 'ورد العشاء'],
+    ];
+    for (const [key, mins, label] of offsets) {
+      const at = (times as unknown as Record<string, Date>)[key];
+      if (!(at instanceof Date)) continue;
+      const fireAt = at.getTime() + mins * 60_000;
+      const delay = fireAt - Date.now();
+      if (delay < 0) continue;
+      const id = window.setTimeout(() => {
+        void notifyNow(`${label} — حان وردك`, 'دقائق مع القرآن الكريم الآن', `noor-wird-${key}`);
+      }, Math.min(delay, 2_147_483_000));
+      wirdTimers.current.push(id);
+    }
+    return () => {
+      wirdTimers.current.forEach((id) => window.clearTimeout(id));
+      wirdTimers.current = [];
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifications, dailyReminders, location, calcMethod, madhab]);
 
   const surahs = useAsync(() => getSurahs(), []);
 
@@ -78,13 +117,24 @@ export default function Home() {
     const s = loadHifz();
     return {
       memorized: s.entries.reduce((a, e) => a + memorizedCount(e), 0),
-      due: dueForReview(s, todayIndex(), 20).length,
+      due: dueForReview(s, todayIndex(), 20, loadTasmee3()).length,
     };
   }, []);
 
   const quranAyahs = surahs.data?.reduce((a, s) => a + s.verses, 0) ?? 0;
   const hifzKnown = quranAyahs > 0;
   const hifzPct = hifzKnown ? (hifz.memorized / quranAyahs) * 100 : 0;
+
+  /** تقدّم الختمة: مجموع آيات السور السابقة على آخر موضع قراءة + الآية الحالية */
+  const khatmaPct = useMemo(() => {
+    if (!surahs.data || surahs.data.length === 0) return 0;
+    let before = 0;
+    for (const su of surahs.data) {
+      if (su.n < lastSurah) before += su.verses;
+      else break;
+    }
+    return Math.min(100, ((before + lastAyah) / 6236) * 100);
+  }, [surahs.data, lastSurah, lastAyah]);
 
   return (
     <div className="animate-fade-in">
@@ -96,6 +146,46 @@ export default function Home() {
           {formatGregorian(new Date())} · {formatHijri(hijri)}
         </p>
       </header>
+
+      {/* هدفي من القرآن — يُضبط في الجولة الافتتاحية أو من الإعدادات */}
+      {goal ? (
+        <Link to="/settings" className="mb-5 block animate-fade-in">
+          <Card className="border-gold-400/25 bg-gradient-to-br from-gold-400/10 to-transparent">
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gold-400/15 text-gold-300">
+                <QuranIcon className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] text-slate-500">{L({ ar: 'هدفي من القرآن', en: 'My goal' })}</p>
+                <p className="truncate text-sm font-bold text-slate-100">
+                  {goal.type === 'khatma' && L({ ar: `ختم المصحف خلال ${goal.khatmaDays ?? 60} يوماً`, en: `Completing the Quran in ${goal.khatmaDays ?? 60} days` })}
+                  {goal.type === 'hifzJuz' && L({ ar: 'حفظ جزء عم', en: 'Memorizing Juz Amma' })}
+                  {goal.type === 'hifzSurahs' && L({ ar: 'حفظ سور محددة', en: 'Memorizing specific surahs' })}
+                  {goal.type === 'tajweed' && L({ ar: 'ختم المصحف + تأسيس التجويد', en: 'Khatma + tajweed foundations' })}
+                  {goal.type === 'tadabbur' && L({ ar: 'فهم وتدبر التلاوة', en: 'Understanding and reflecting' })}
+                </p>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  {L({ ar: `بمعدل ${goal.dailyTarget} آية يومياً`, en: `${goal.dailyTarget} ayahs daily` })}
+                  {goal.name ? <> · <span className="text-gold-300">{goal.name}</span></> : null}
+                </p>
+              </div>
+              <span className="shrink-0 text-xs text-slate-600">{L({ ar: 'تعديل', en: 'Edit' })}‹</span>
+            </div>
+            {(goal.type === 'khatma' || goal.type === 'tajweed' || goal.type === 'tadabbur') ? (
+              <div className="mt-3"><ProgressBar value={khatmaPct} /></div>
+            ) : (
+              <div className="mt-3"><ProgressBar value={hifzPct} /></div>
+            )}
+          </Card>
+        </Link>
+      ) : (
+        <Link to="/onboarding?edit=1" className="mb-5 block">
+          <Card className="flex items-center justify-between gap-3 border-dashed">
+            <span className="text-xs text-slate-400">{L({ ar: 'لم تُحدد هدفك بعد — دقيقة واحدة تكفي', en: 'You have not set your goal yet — one minute is enough' })}</span>
+            <span className="shrink-0 text-xs font-semibold text-gold-300">{L({ ar: 'حدد هدفي ←', en: 'Set goal →' })}</span>
+          </Card>
+        </Link>
+      )}
 
       {/* الصلاة القادمة */}
       <Section title={t('nextPrayer')}>
@@ -168,6 +258,52 @@ export default function Home() {
           </Card>
         </Link>
       </Section>
+
+      {/* وردك اليوم — من موضع قراءتك الحقيقي، بلا ادعاء تقدّم مخفي */}
+      {surahs.data ? (() => {
+        const daily = Math.max(1, Math.min(50, goal?.dailyTarget ?? 5));
+        const startSurah = (() => {
+          const last = surahs.data.find((x) => x.n === lastSurah);
+          if (last && lastAyah >= last.verses) return { s: Math.min(114, lastSurah + 1), a: 1 };
+          return { s: lastSurah, a: lastAyah + 1 };
+        })();
+        const wird = (() => {
+          const out: Array<{ surah: number; a: number; name: string }> = [];
+          let s = startSurah.s, a = startSurah.a, i = surahs.data.findIndex((x) => x.n === s);
+          while (out.length < daily && i < surahs.data.length) {
+            const cur = surahs.data[i];
+            if (a > cur.verses) { i += 1; if (i < surahs.data.length) { s = surahs.data[i].n; a = 1; } continue; }
+            out.push({ surah: s, a, name: cur.ar });
+            a += 1;
+          }
+          return out;
+        })();
+        if (wird.length === 0) return null;
+        const first = wird[0];
+        const last = wird[wird.length - 1];
+        return (
+          <Section title={L({ ar: 'وردك اليوم', en: 'Today’s wird' })}>
+            <Link to={`/quran/${first.surah}/${first.a}`} className="block">
+              <Card className="border-gold-400/20">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gold-400/10 text-gold-300">
+                    <QuranIcon className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-slate-100">
+                      {L({ ar: `من «${first.name}» آية ${first.a} إلى «${last.name}» آية ${last.a}`, en: `${first.name} ${first.a} → ${last.name} ${last.a}` })}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      <span className="num">{wird.length}</span> {L({ ar: 'آية — اضغط لمتابعة قراءتك', en: 'ayahs — tap to continue reading' })}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-slate-600">‹</span>
+                </div>
+              </Card>
+            </Link>
+          </Section>
+        );
+      })() : null}
 
       {/* متابعة الحفظ */}
       <Section title={L({ ar: 'متابعة الحفظ', en: 'Memorization' })}>

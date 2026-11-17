@@ -18,6 +18,7 @@ const Qibla = lazy(() => import('./pages/Qibla'));
 const Tasbih = lazy(() => import('./pages/Tasbih'));
 const Adhkar = lazy(() => import('./pages/Adhkar'));
 const Hifz = lazy(() => import('./pages/Hifz'));
+const Tasmee3 = lazy(() => import('./pages/Tasmee3'));
 const Names = lazy(() => import('./pages/Names'));
 const Calendar = lazy(() => import('./pages/Calendar'));
 const Search = lazy(() => import('./pages/Search'));
@@ -27,6 +28,13 @@ const Settings = lazy(() => import('./pages/Settings'));
 const More = lazy(() => import('./pages/More'));
 const Account = lazy(() => import('./pages/Account'));
 const About = lazy(() => import('./pages/About'));
+const Onboarding = lazy(() => import('./pages/Onboarding'));
+const Fiqh = lazy(() => import('./pages/Fiqh'));
+const History = lazy(() => import('./pages/History'));
+const Scholars = lazy(() => import('./pages/Scholars'));
+const Similar = lazy(() => import('./pages/Similar'));
+const Report = lazy(() => import('./pages/Report'));
+const Tajweed = lazy(() => import('./pages/Tajweed'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 export default function App() {
@@ -35,6 +43,8 @@ export default function App() {
   return (
     <Suspense fallback={<Loading />}>
       <Routes>
+        {/* الجولة الافتتاحية: شاشة مستقلة خارج الإطار — بلا شريط تنقل سفلي */}
+        <Route path="/onboarding" element={<Onboarding />} />
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="quran" element={<Quran />} />
@@ -47,6 +57,13 @@ export default function App() {
           <Route path="tasbih" element={<Tasbih />} />
           <Route path="adhkar" element={<Adhkar />} />
           <Route path="hifz" element={<Hifz />} />
+          <Route path="tasmee3" element={<Tasmee3 />} />
+          <Route path="fiqh" element={<Fiqh />} />
+          <Route path="history" element={<History />} />
+          <Route path="scholars" element={<Scholars />} />
+          <Route path="similar" element={<Similar />} />
+          <Route path="report" element={<Report />} />
+          <Route path="tajweed" element={<Tajweed />} />
           <Route path="names" element={<Names />} />
           <Route path="calendar" element={<Calendar />} />
           <Route path="search" element={<Search />} />

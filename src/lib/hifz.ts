@@ -279,51 +279,55 @@ function reviewInterval(ageDays: number): number {
 /**
  * آيات تستحق المراجعة اليوم.
  *
- * النموذج على مستوى السورة لا الآية: السورة تحمل طابع آخر تحديث واحداً،
- * وعمر آية فيها هو عمر سورتها. الأقدم أولاً — هو ما يضعف أسرع — والحدّ
- * اليومي يقطع القمة فما يليه يؤجَّل إلى الغد.
+ * التكرار متباعد بمصدرين: إن سجّل المستخدم تقييمه في التسميع (`srs`)
+ * فالآية تعود بعد ١ / ٣ / ١٤ يوماً حسب إتقانه (0/1/2)؛ وإن لم تُقيَّم بعد
+ * فتستمر بالنموذج العمري القديم. الأضعف أولاً، والأقدم ثانياً.
  *
  * `today` رقم يوم، فالنتيجة ثابتة لا تتغيّر بتغيّر الوقت داخل اليوم.
  */
-export function dueForReview(s: HifzState, today: number, limit: number): ReviewItem[] {
+export function dueForReview(s: HifzState, today: number, limit: number, srs?: { perAyah: Record<string, { ease: 0|1|2; last: number }> } | null): ReviewItem[] {
   const cap = intOf(limit, 0, REVIEW_MAX, 0);
   if (cap <= 0) return [];
   const now = intOf(today, 0, START_DAY_MAX, todayIndex()) * DAY_MS;
   const entries = Array.isArray(s?.entries) ? s.entries : [];
+  const srsMap = srs?.perAyah ?? {};
 
-  const rows: Array<{ surah: number; run: number; extra: number[]; age: number }> = [];
+  // (أولوية، سورة، آية، مرساة زمنية) — الأولوية: 0 = ضعيف، 1 = جيد، 2 = حديث (قديم النموذج)، 3 = متقن
+  const scored: Array<{ surah: number; ayah: number; prio: number; anchor: number }> = [];
+
   for (const e of entries) {
     if (!e || typeof e !== 'object') continue;
     const surah = intOf(e.surah, 1, SURAH_MAX, 0);
     if (!surah) continue;
     const stamp = intOf(e.updatedAt, 0, STAMP_MAX, 0);
-    // لا طابع: لا نعرف عمر الحفظ، فلا نُدّعي استحقاقه للمراجعة
-    if (stamp <= 0) continue;
-    const age = Math.floor((now - stamp) / DAY_MS);
-    // حُفظت اليوم فلا مراجعة بعد، والحدّ الأدنى يوم واحد
-    if (age < 1 || age < reviewInterval(age)) continue;
-    rows.push({
-      surah,
-      run: intOf(e.maxAyah, 0, AYAH_MAX, 0),
-      extra: Array.isArray(e.extra) ? e.extra : [],
-      age,
-    });
-  }
-  // الأقدم أولاً، وعند التساوي برقم السورة ثم رقم الآية
-  rows.sort((a, b) => b.age - a.age || a.surah - b.surah);
+    const age = stamp > 0 ? Math.floor((now - stamp) / DAY_MS) : 0;
+    const run = intOf(e.maxAyah, 0, AYAH_MAX, 0);
+    const extras = Array.isArray(e.extra) ? e.extra.filter((n) => Number.isInteger(n) && n >= 1 && n <= AYAH_MAX) : [];
 
-  const out: ReviewItem[] = [];
-  for (const r of rows) {
-    for (let a = 1; a <= r.run; a++) {
-      out.push({ surah: r.surah, ayah: a });
-      if (out.length >= cap) return out;
-    }
-    for (const raw of r.extra) {
-      const a = typeof raw === 'number' ? raw : NaN;
-      if (!Number.isInteger(a) || a < 1 || a > AYAH_MAX) continue;
-      out.push({ surah: r.surah, ayah: a });
-      if (out.length >= cap) return out;
+    const all: number[] = [];
+    for (let a = 1; a <= run; a++) all.push(a);
+    for (const a of extras) if (a > run) all.push(a);
+
+    // آية آية: الأولوية من تقييم التسميع إن وُجد، وإلا من العمر التقليدي
+    for (const a of all) {
+      const st = srsMap[`${surah}:${a}`];
+      if (st) {
+        const interval = st.ease === 0 ? 1 : st.ease === 1 ? 3 : 14;
+        if (today - st.last >= interval) {
+          scored.push({ surah, ayah: a, prio: st.ease === 0 ? 0 : st.ease === 1 ? 1 : 3, anchor: st.last });
+        }
+      } else {
+        // نفس النموذج القديم: عمر ≥ يوم، والأقدم أولاً (أولوية 2)
+        if (stamp <= 0) continue;
+        if (age >= 1 && age >= reviewInterval(age)) {
+          const stampDay = Math.floor(stamp / DAY_MS);
+          scored.push({ surah, ayah: a, prio: 2, anchor: stampDay });
+        }
+      }
     }
   }
-  return out;
+
+  // الأضعف أولاً، ثم الأقدم تقويمياً، ثم برقم السورة والآية — مطابق للنموذج القديم
+  scored.sort((x, y) => x.prio - y.prio || x.anchor - y.anchor || x.surah - y.surah || x.ayah - y.ayah);
+  return scored.slice(0, cap).map(({ surah, ayah }) => ({ surah, ayah }));
 }

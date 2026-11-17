@@ -168,3 +168,33 @@ export function HadithIcon({ className = base }: P) {
     </svg>
   );
 }
+
+export function ScaleIcon({ className = base }: P) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 4v16M8 20h8M12 6 6.5 8.5M12 6l5.5 2.5" />
+      <path d="M4 14.5 6.5 9 9 14.5a3.6 3.6 0 0 1-5 0Z" />
+      <path d="M15 14.5 17.5 9 20 14.5a3.6 3.6 0 0 1-5 0Z" />
+    </svg>
+  );
+}
+
+export function HistoryIcon({ className = base }: P) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 8v4l2.5 1.5" />
+      <path d="M3.5 12a8.5 8.5 0 1 1 2.5 6" />
+      <path d="M3.5 12H7M3.5 12 5 8.5" />
+    </svg>
+  );
+}
+
+export function ScholarIcon({ className = base }: P) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 9.5 12 5l8 4.5-8 4.5-8-4.5Z" />
+      <path d="M7 11.5V16c0 1.2 2.2 2.5 5 2.5s5-1.3 5-2.5v-4.5" />
+      <path d="M17.5 10v4.5" />
+    </svg>
+  );
+}

@@ -54,9 +54,11 @@ function BookCard({
   const t = useT();
   const L = useL();
   const m = (k: MsgKey) => (t.lang === 'ar' ? MESSAGES[k].ar : MESSAGES[k].en);
+  // الصحيحان مبرزون دائماً — أول الترتيب في البيانات وإطار ذهبي هنا
+  const isShahihayn = b.key === 'bukhari' || b.key === 'muslim';
 
   return (
-    <article className="card p-4">
+    <article className={`card p-4 ${isShahihayn ? 'border-gold-400/40 ring-1 ring-gold-400/30' : ''}`}>
       <header className="flex items-start gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-300">
           <HadithIcon className="h-5 w-5" />
@@ -65,6 +67,9 @@ function BookCard({
           <h3 className="truncate text-base font-semibold text-slate-100">{L(b.label)}</h3>
           <p className="truncate text-xs text-slate-500">{L(b.author)}</p>
         </div>
+        {isShahihayn ? (
+          <Badge tone="gold">{L({ ar: 'الصحيحان', en: 'Sahihayn' })}</Badge>
+        ) : null}
         <Badge tone={b.grade === 'sahih' ? 'green' : 'gold'}>
           {b.grade === 'sahih' ? t('sahih') : t('allGrades')}
         </Badge>
@@ -137,6 +142,18 @@ export default function Hadith() {
 
   return (
     <div className="animate-fade-in">
+      <div className="mb-4 rounded-xl border border-gold-400/30 bg-gold-400/8 px-4 py-3 text-[12px] leading-6 text-gold-100">
+        <p className="font-bold text-gold-200">
+          {L({ ar: 'الصحيحان — المعتمدان بعد القرآن', en: 'The Sahihayn — the two most authentic after the Quran' })}
+        </p>
+        <p className="mt-0.5 text-[11px] text-slate-300">
+          {L({
+            ar: 'صحيح البخاري ثم صحيح مسلم — أصح كتابين بعد القرآن عند أهل العلم بالإجماع. وبقيت الكتب تُعرض كما هي: داخلها الصحيح والحسن والضعيف، والحكم على كل حديث لمؤلفيه.',
+            en: 'Sahih al-Bukhari, then Sahih Muslim — the two most authentic books after the Quran. Other collections mix grades; each hadith carries its author’s own grading.',
+          })}
+        </p>
+      </div>
+
       <div className="card mb-4 flex items-center gap-3 p-4">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-300">
           <HadithIcon className="h-6 w-6" />

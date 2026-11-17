@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useRef } from 'react';
 import { useSettings } from '../lib/store';
 import { useL, useOnline, useT, useTheme } from '../lib/hooks';
@@ -44,6 +44,15 @@ export default function Layout() {
   const lang = useSettings((s) => s.lang);
   const mainRef = useRef<HTMLElement>(null);
   const { pathname } = useLocation();
+  const nav = useNavigate();
+  const onboarded = useSettings((s) => s.onboarded);
+
+  // الجولة الافتتاحية أول ما يُفتح على جهاز جديد — قبل أي شاشة أخرى
+  useEffect(() => {
+    if (!onboarded && pathname !== '/onboarding') {
+      nav('/onboarding', { replace: true });
+    }
+  }, [onboarded, pathname, nav]);
 
   // كل تنقّل يبدأ من أعلى الصفحة
   useEffect(() => {
@@ -56,7 +65,7 @@ export default function Layout() {
       <header className="no-print sticky top-0 z-30 border-b border-white/5 bg-ink-900/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 pt-[max(.75rem,var(--safe-t))] pb-3">
           <NavLink to="/" className="flex shrink-0 items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-gold-300 to-gold-500 text-lg font-bold text-ink-900 shadow-lg shadow-gold-500/20">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[#173F2E] to-[#081F16] text-lg font-bold text-gold-300 ring-1 ring-gold-400/45 shadow-lg shadow-emerald-900/40">
               ن
             </span>
             <span className="hidden text-lg font-bold text-slate-100 sm:block">{t('appName')}</span>

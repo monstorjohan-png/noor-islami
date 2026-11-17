@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { loadData, removeFile, isDownloaded, storageInfo, requestPersistence } from '../lib/db';
 import { getHadithIndex } from '../lib/content';
 import { audioCacheInfo, clearAudioCache } from '../lib/audio';
+import { ensureListenModel, listenState, removeListenModel } from '../lib/listen';
 import { yieldToUI } from '../lib/async';
 import { useAsync, useL, useT } from '../lib/hooks';
 import { Badge, Card, ErrorBox, Loading, ProgressBar, Section } from '../components/ui';
@@ -65,6 +66,21 @@ export default function Download() {
   const [progress, setProgress] = useState({ loaded: 0, total: 0 });
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [audioInfo, setAudioInfo] = useState({ entries: 0, bytes: 0 });
+  const [smart, setSmart] = useState<{ phase: 'idle' | 'downloading' | 'ready' | 'error'; pct: number }>(() => {
+    const s = listenState();
+    return { phase: s.status === 'ready' ? 'ready' : 'idle', pct: s.status === 'loading' ? s.progress : 0 };
+  });
+  const aliveRef = useRef(true);
+  useEffect(() => () => { aliveRef.current = false; }, []);
+  const downloadSmart = useCallback(() => {
+    setSmart({ phase: 'downloading', pct: 0 });
+    ensureListenModel((pct) => { if (aliveRef.current) setSmart({ phase: 'downloading', pct }); })
+      .then(() => { if (aliveRef.current) setSmart({ phase: 'ready', pct: 100 }); })
+      .catch(() => { if (aliveRef.current) setSmart({ phase: 'error', pct: 0 }); });
+  }, []);
+  const removeSmart = useCallback(() => {
+    void removeListenModel().then(() => { if (aliveRef.current) setSmart({ phase: 'idle', pct: 0 }); });
+  }, []);
   // مرجع حي للإلغاء — useRef لا يُعيد الرسم فتبقى الواجهة مستجيبة
   const abortRef = useRef<AbortController | null>(null);
 
@@ -258,6 +274,47 @@ export default function Download() {
             <Row key={it.path} it={it} isDone={!!done[it.path]} busy={busy === it.path} err={failed[it.path]} onGet={() => one(it)} onDrop={() => drop(it)} t={t} L={L} />
           ))}
         </ul>
+      </Section>
+
+      <Section title={L({ ar: 'المميزات الذكية — تعمل بلا نت بعد التنزيل', en: 'Smart features — offline after download' })}>
+        <Card>
+          <p className="text-sm font-semibold text-slate-100">
+            {L({ ar: 'حزمة التسميع الذكي — Whisper Small', en: 'Smart recitation pack — Whisper Small' })}
+          </p>
+          <p className="mt-1 text-[11px] leading-5 text-slate-500">
+            {L({
+              ar: 'يسمع قراءتك ويطابقها بكلمات الآية حرفياً، ويُخرج نسبة الإتقان — يعمل بلا نت إطلاقاً بعد التنزيل. الحجم ~250MB مرة واحدة.',
+              en: 'Listens to your recitation and word-matches against the verse — fully offline after a one-time ~250MB download.',
+            })}
+          </p>
+          {smart.phase === 'downloading' ? (
+            <div className="mt-3">
+              <div className="flex items-center justify-between gap-3 text-[11px] text-slate-400">
+                <span>{L({ ar: 'جاري التنزيل…', en: 'Downloading…' })}</span>
+                <span className="num text-gold-300">{smart.pct}٪</span>
+              </div>
+              <div className="mt-1.5"><ProgressBar value={smart.pct} /></div>
+            </div>
+          ) : smart.phase === 'ready' ? (
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-[11px] text-emerald-400">{L({ ar: 'مثبتة — تعمل بلا نت', en: 'Installed — works offline' })}</p>
+              <button type="button" className="btn-ghost !px-3 !py-1.5 text-xs" onClick={removeSmart}>
+                {L({ ar: 'حذف الحزمة', en: 'Remove pack' })}
+              </button>
+            </div>
+          ) : smart.phase === 'error' ? (
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-[11px] text-rose-300">{L({ ar: 'تعذر التنزيل — تحقق من الاتصال', en: 'Download failed — check connection' })}</p>
+              <button type="button" className="btn-ghost !px-3 !py-1.5 text-xs" onClick={downloadSmart}>
+                {L({ ar: 'إعادة المحاولة', en: 'Retry' })}
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="btn-primary mt-3 w-full" onClick={downloadSmart}>
+              {L({ ar: 'تنزيل الحزمة (~250MB)', en: 'Download the pack (~250MB)' })}
+            </button>
+          )}
+        </Card>
       </Section>
 
       <Section title={L({ ar: 'التلاوات المحفوظة', en: 'Saved recitations' })}>

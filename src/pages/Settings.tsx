@@ -18,7 +18,17 @@ const REMINDER_MINUTE = 30;
 import { Card, Row, Section, Toggle } from '../components/ui';
 import BackupPanel from '../components/BackupPanel';
 import { PALETTES } from '../lib/theme';
-import type { Madhab } from '../lib/store';
+import type { GoalType, Madhab } from '../lib/store';
+
+/** أسماء الأهداف مختصرة — تُعرض في الإعدادات وفي لوحة الهدف */
+const GOAL_LABELS: Record<GoalType, string> = {
+  khatma: 'ختم المصحف',
+  hifzJuz: 'حفظ جزء عم',
+  hifzSurahs: 'حفظ سور محددة',
+  tajweed: 'ختم + تأسيس التجويد',
+  tadabbur: 'فهم وتدبر',
+  browse: 'تصفح حر',
+};
 
 const FONT_STEPS = [20, 24, 28, 32, 38, 44, 52];
 type GpsState = 'idle' | 'busy' | 'ok' | 'denied';
@@ -142,6 +152,28 @@ export default function Settings() {
       </Card>
 
       {/* الصلاة */}
+      {/* هدفي من القرآن — يُضبط في الجولة الافتتاحية أو من هنا، ويُخزَّن محلياً فقط */}
+      <Card className="mb-4">
+        <Row label={L({ ar: 'هدفي من القرآن', en: 'My goal for the Quran' })}>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-300">
+              {s.goal ? GOAL_LABELS[s.goal.type] : L({ ar: 'لم تُحدد بعد', en: 'Not set yet' })}
+            </span>
+            <Link to="/onboarding?edit=1" className="btn-ghost !px-3 !py-1.5 text-xs">
+              {L({ ar: s.goal ? 'تعديل' : 'تحديد', en: s.goal ? 'Edit' : 'Set' })}
+            </Link>
+          </div>
+        </Row>
+        {s.goal ? (
+          <p className="border-t border-white/5 pt-2 text-[11px] leading-5 text-slate-500">
+            {L({
+              ar: `الخطة: ${GOAL_LABELS[s.goal.type]}${s.goal.khatmaDays ? ` خلال ${s.goal.khatmaDays} يوماً` : ''} · ${s.goal.dailyTarget} آية يومياً`,
+              en: `Plan: ${s.goal.type} · ${s.goal.dailyTarget} ayahs daily`,
+            })}
+          </p>
+        ) : null}
+      </Card>
+
       <Section title={t('prayer')} />
       <Card className="mb-4">
         <Row label={t('method')}>
